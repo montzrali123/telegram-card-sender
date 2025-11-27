@@ -768,8 +768,9 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     
-    app.add_handler(conv_handler)
+    # إضافة CallbackQueryHandler قبل ConversationHandler لإعطائه الأولوية
     app.add_handler(CallbackQueryHandler(button_callback))
+    app.add_handler(conv_handler)
     
     logger.info("🚀 البوت يعمل الآن...")
     app.run_polling()
