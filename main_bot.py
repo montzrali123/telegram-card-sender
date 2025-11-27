@@ -643,11 +643,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         status = "قيد التشغيل ▶️" if task['is_running'] else "متوقفة ⏸️"
         
+        # Escape الأحرف الخاصة في Markdown
+        target_bot_escaped = task['target_bot'].replace('_', '\\_')
+        command_escaped = task['command'].replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').replace('`', '\\`')
+        
         await query.edit_message_text(
             f"📋 **المهمة: {task['name']}**\n\n"
             f"الجلسة: {task['session_name']}\n"
-            f"البوت المستهدف: {task['target_bot']}\n"
-            f"الأمر: {task['command']}\n"
+            f"البوت المستهدف: {target_bot_escaped}\n"
+            f"الأمر: {command_escaped}\n"
             f"الفاصل الزمني: {task['interval_seconds']}ث\n"
             f"الحالة: {status}\n\n"
             f"📊 **الإحصائيات:**\n"
