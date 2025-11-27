@@ -23,6 +23,7 @@ cards/
 *.txt
 !requirements.txt
 !example_cards.txt
+!runtime.txt
 
 # Telegram sessions
 *.session
