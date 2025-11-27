@@ -1,5 +1,5 @@
 services:
-  - type: web
+  - type: worker
     name: telegram-card-sender
     env: python
     plan: free
