@@ -21,6 +21,8 @@ ENV/
 # Cards files
 cards/
 *.txt
+!requirements.txt
+!example_cards.txt
 
 # Telegram sessions
 *.session
