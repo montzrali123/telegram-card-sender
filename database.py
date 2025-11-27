@@ -18,11 +18,14 @@ class Database:
         encryption_key = os.getenv("DB_ENCRYPTION_KEY")
         if not encryption_key:
             # توليد مفتاح جديد إذا لم يكن موجود
-            encryption_key = Fernet.generate_key().decode()
+            new_key = Fernet.generate_key()
+            encryption_key = new_key.decode()
             print(f"⚠️ مفتاح تشفير جديد: {encryption_key}")
             print("احفظه في متغير البيئة DB_ENCRYPTION_KEY")
-        
-        self.cipher = Fernet(encryption_key.encode() if isinstance(encryption_key, str) else encryption_key)
+            self.cipher = Fernet(new_key)
+        else:
+            # استخدام المفتاح الموجود
+            self.cipher = Fernet(encryption_key.encode() if isinstance(encryption_key, str) else encryption_key)
         
         self.connect()
         self.create_tables()
