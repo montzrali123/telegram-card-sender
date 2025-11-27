@@ -15,7 +15,8 @@ class Database:
         self.cursor = None
         
         # مفتاح التشفير للبيانات الحساسة
-        encryption_key = os.getenv("DB_ENCRYPTION_KEY")
+        encryption_key = os.getenv("DB_ENCRYPTION_KEY", "").strip()
+        
         if not encryption_key:
             # توليد مفتاح جديد إذا لم يكن موجود
             new_key = Fernet.generate_key()
@@ -25,7 +26,21 @@ class Database:
             self.cipher = Fernet(new_key)
         else:
             # استخدام المفتاح الموجود
-            self.cipher = Fernet(encryption_key.encode() if isinstance(encryption_key, str) else encryption_key)
+            try:
+                # تأكد من أن المفتاح بصيغة bytes
+                if isinstance(encryption_key, str):
+                    key_bytes = encryption_key.encode('utf-8')
+                else:
+                    key_bytes = encryption_key
+                self.cipher = Fernet(key_bytes)
+            except Exception as e:
+                print(f"❌ خطأ في مفتاح التشفير: {e}")
+                print("سيتم توليد مفتاح جديد...")
+                new_key = Fernet.generate_key()
+                encryption_key = new_key.decode()
+                print(f"⚠️ مفتاح تشفير جديد: {encryption_key}")
+                print("احفظه في متغير البيئة DB_ENCRYPTION_KEY")
+                self.cipher = Fernet(new_key)
         
         self.connect()
         self.create_tables()
