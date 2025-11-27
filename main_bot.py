@@ -761,7 +761,7 @@ def main():
             CREATE_TASK_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_name)],
             CREATE_TASK_SESSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_session)],
             CREATE_TASK_BOT: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_bot)],
-            CREATE_TASK_COMMAND: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_command)],
+            CREATE_TASK_COMMAND: [MessageHandler(filters.TEXT, create_task_command)],
             CREATE_TASK_FILE: [MessageHandler(filters.Document.ALL, create_task_file)],
             CREATE_TASK_INTERVAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_interval)],
         },
