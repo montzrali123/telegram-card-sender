@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 class SessionManager:
     def __init__(self):
         self.active_clients: Dict[int, TelegramClient] = {}
+        self.temp_clients: Dict[str, TelegramClient] = {}  # للاحتفاظ بالـ clients المؤقتة
     
     async def create_session(self, phone: str, api_id: str, api_hash: str) -> Dict[str, str]:
         """
@@ -27,11 +28,13 @@ class SessionManager:
             # إرسال كود التحقق
             result = await client.send_code_request(phone)
             
+            # حفظ الـ client للاستخدام لاحقاً
+            self.temp_clients[phone] = client
+            
             return {
                 'status': 'code_sent',
                 'message': 'تم إرسال كود التحقق. أدخل الكود الآن.',
-                'phone_code_hash': result.phone_code_hash,
-                'client_id': id(client)  # معرف مؤقت للعميل
+                'phone_code_hash': result.phone_code_hash
             }
         
         except Exception as e:
@@ -47,8 +50,14 @@ class SessionManager:
         التحقق من كود التأكيد والحصول على session string
         """
         try:
-            client = TelegramClient(StringSession(), api_id, api_hash)
-            await client.connect()
+            # استخدام الـ client المحفوظ
+            if phone not in self.temp_clients:
+                return {
+                    'status': 'error',
+                    'message': 'الجلسة منتهية. ابدأ من جديد بـ /start'
+                }
+            
+            client = self.temp_clients[phone]
             
             try:
                 # تسجيل الدخول بالكود
@@ -69,6 +78,10 @@ class SessionManager:
             me = await client.get_me()
             
             await client.disconnect()
+            
+            # حذف الـ client المؤقت
+            if phone in self.temp_clients:
+                del self.temp_clients[phone]
             
             return {
                 'status': 'success',
