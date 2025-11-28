@@ -656,7 +656,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"الفاشل: {stats['total_failed']}",
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(keyboard)
-        ))
+        )
     
     elif data.startswith("start_task_"):
         task_id = int(data.split("_")[2])
