@@ -179,9 +179,41 @@ class TaskRunner:
                 
                 # تسجيل النتيجة
                 if result['status'] == 'success':
-                    self.db.update_stats(task_id, sent=1, success=1, last_index=i+1)
-                    self.db.add_log(task_id, card, result.get('response', ''), 'success')
-                    logger.info(f"المهمة {task_id}: تم إرسال البطاقة {i+1}/{total_cards} بنجاح")
+                    response_text = result.get('response', '').lower()
+                    
+                    # كشف تلقائي للنجاح/الفشل بناءً على الرد
+                    if 'approved' in response_text or 'نجح' in response_text or 'success' in response_text:
+                        self.db.update_stats(task_id, sent=1, success=1, last_index=i+1)
+                        self.db.add_log(task_id, card, result.get('response', ''), 'success')
+                        logger.info(f"المهمة {task_id}: ✅ نجاح! البطاقة {i+1}/{total_cards} - Approved")
+                        
+                        # إرسال إشعار للمستخدم
+                        try:
+                            from telegram import Bot
+                            bot = Bot(token=os.getenv('BOT_TOKEN'))
+                            owner_id = int(os.getenv('OWNER_ID', 0))
+                            if owner_id:
+                                await bot.send_message(
+                                    chat_id=owner_id,
+                                    text=f"✅ <b>فحص ناجح!</b>\n\n"
+                                         f"📋 المهمة: {task['name']}\n"
+                                         f"💳 البطاقة: <code>{card}</code>\n"
+                                         f"🎯 النتيجة: Approved",
+                                    parse_mode='HTML'
+                                )
+                        except Exception as e:
+                            logger.error(f"خطأ في إرسال الإشعار: {e}")
+                    
+                    elif 'declined' in response_text or 'فشل' in response_text or 'failed' in response_text or 'error' in response_text:
+                        self.db.update_stats(task_id, sent=1, failed=1, last_index=i+1)
+                        self.db.add_log(task_id, card, result.get('response', ''), 'failed')
+                        logger.info(f"المهمة {task_id}: ❌ فشل - البطاقة {i+1}/{total_cards} - Declined")
+                    
+                    else:
+                        # إذا لم يتم الكشف عن النتيجة، نعتبرها مرسلة فقط
+                        self.db.update_stats(task_id, sent=1, success=0, last_index=i+1)
+                        self.db.add_log(task_id, card, result.get('response', ''), 'unknown')
+                        logger.info(f"المهمة {task_id}: ❓ غير محدد - البطاقة {i+1}/{total_cards}")
                 else:
                     self.db.update_stats(task_id, sent=1, failed=1, last_index=i+1)
                     self.db.add_log(task_id, card, result.get('message', ''), 'failed')
@@ -248,6 +280,27 @@ class TaskRunner:
     def get_running_tasks_count(self) -> int:
         """الحصول على عدد المهام قيد التشغيل"""
         return len(self.running_tasks)
+    
+    async def delete_task(self, task_id: int) -> Dict[str, str]:
+        """حذف مهمة (مع إيقافها إذا كانت قيد التشغيل)"""
+        try:
+            # إيقاف المهمة إذا كانت قيد التشغيل
+            if task_id in self.running_tasks:
+                await self.stop_task(task_id)
+                # الانتظار قليلاً للتأكد من الإيقاف
+                await asyncio.sleep(2)
+            
+            return {
+                'status': 'success',
+                'message': 'تم حذف المهمة بنجاح'
+            }
+        
+        except Exception as e:
+            logger.error(f"خطأ في حذف المهمة {task_id}: {e}")
+            return {
+                'status': 'error',
+                'message': f'خطأ: {str(e)}'
+            }
     
     def is_task_running(self, task_id: int) -> bool:
         """التحقق من تشغيل المهمة"""

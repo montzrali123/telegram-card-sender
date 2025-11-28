@@ -637,7 +637,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             keyboard.append([InlineKeyboardButton("▶️ تشغيل", callback_data=f"start_task_{task_id}")])
         
-        keyboard.append([InlineKeyboardButton("📊 الإحصائيات", callback_data=f"stats_task_{task_id}")])
+        keyboard.append([InlineKeyboardButton("🔄 تحديث الإحصائيات", callback_data=f"task_{task_id}")])
         keyboard.append([InlineKeyboardButton("🗑️ حذف", callback_data=f"delete_task_{task_id}")])
         keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="back_tasks")])
         
@@ -655,7 +655,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📊 <b>الإحصائيات:</b>\n"
             f"المرسل: {stats['total_sent']}\n"
             f"الناجح: {stats['total_success']}\n"
-            f"الفاشل: {stats['total_failed']}",
+            f"الفاشل: {stats['total_failed']}\n\n"
+            f"ℹ️ اضغط '🔄 تحديث الإحصائيات' للتحديث",
             parse_mode=ParseMode.HTML,
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
@@ -680,7 +681,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data.startswith("delete_task_"):
         task_id = int(data.split("_")[2])
+        
+        # إيقاف المهمة أولاً إذا كانت قيد التشغيل
+        result = await task_runner.delete_task(task_id)
+        
+        # حذف من قاعدة البيانات
         db.delete_task(task_id)
+        
         await query.edit_message_text("✅ تم حذف المهمة بنجاح!")
 
 # ============= الإحصائيات والمساعدة =============
