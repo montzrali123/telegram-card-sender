@@ -562,133 +562,162 @@ async def create_task_interval(update: Update, context: ContextTypes.DEFAULT_TYP
 # ============= معالجات الأزرار =============
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """معالج أزرار inline"""
+    """معالج ضغطات الأزرار"""
     query = update.callback_query
     await query.answer()
     
     data = query.data
     
-    if data.startswith("session_"):
-        session_id = int(data.split("_")[1])
-        session = db.get_session(session_id)
+    try:
+        if data.startswith("session_"):
+            session_id = int(data.split("_")[1])
+            session = db.get_session(session_id)
+            
+            if not session:
+                await query.edit_message_text("❌ الجلسة غير موجودة.")
+                return
+            
+            keyboard = [
+                [InlineKeyboardButton("🔄 تفعيل/تعطيل", callback_data=f"toggle_session_{session_id}")],
+                [InlineKeyboardButton("🗑️ حذف", callback_data=f"delete_session_{session_id}")],
+                [InlineKeyboardButton("🔙 رجوع", callback_data="back_sessions")]
+            ]
+            
+            from text_formatter import TextFormatter
+            text, parse_mode = TextFormatter.format_session_details(session, use_html=False)
+            
+            await query.edit_message_text(
+                text,
+                parse_mode=parse_mode,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
         
-        if not session:
-            await query.edit_message_text("❌ الجلسة غير موجودة.")
-            return
+        elif data.startswith("toggle_session_"):
+            session_id = int(data.split("_")[2])
+            db.toggle_session(session_id)
+            
+            session = db.get_session(session_id)
+            
+            keyboard = [
+                [InlineKeyboardButton("🔄 تفعيل/تعطيل", callback_data=f"toggle_session_{session_id}")],
+                [InlineKeyboardButton("🗑️ حذف", callback_data=f"delete_session_{session_id}")],
+                [InlineKeyboardButton("🔙 رجوع", callback_data="back_sessions")]
+            ]
+            
+            from text_formatter import TextFormatter
+            text, parse_mode = TextFormatter.format_session_details(session, use_html=False)
+            
+            await query.edit_message_text(
+                text,
+                parse_mode=parse_mode,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
         
-        keyboard = [
-            [InlineKeyboardButton("🔄 تفعيل/تعطيل", callback_data=f"toggle_session_{session_id}")],
-            [InlineKeyboardButton("🗑️ حذف", callback_data=f"delete_session_{session_id}")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="back_sessions")]
-        ]
+        elif data.startswith("delete_session_"):
+            session_id = int(data.split("_")[2])
+            db.delete_session(session_id)
+            
+            await query.edit_message_text("✅ تم حذف الجلسة بنجاح!")
         
-        status = "مفعلة ✅" if session['is_active'] else "معطلة ❌"
+        elif data.startswith("task_"):
+            task_id = int(data.split("_")[1])
+            task = db.get_task(task_id)
+            
+            if not task:
+                await query.edit_message_text("❌ المهمة غير موجودة.")
+                return
+            
+            stats = db.get_task_stats(task_id)
+            
+            keyboard = []
+            if task['is_running']:
+                keyboard.append([InlineKeyboardButton("⏸️ إيقاف", callback_data=f"stop_task_{task_id}")])
+            else:
+                keyboard.append([InlineKeyboardButton("▶️ تشغيل", callback_data=f"start_task_{task_id}")])
+            
+            keyboard.append([InlineKeyboardButton("🔄 تحديث الإحصائيات", callback_data=f"refresh_stats_{task_id}")])
+            keyboard.append([InlineKeyboardButton("🗑️ حذف", callback_data=f"delete_task_{task_id}")])
+            keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="back_tasks")])
+            
+            status = "قيد التشغيل ▶️" if task['is_running'] else "متوقفة ⏸️"
+            
+            from text_formatter import TextFormatter
+            
+            # استخدام التنسيق الآمن
+            text, parse_mode = TextFormatter.format_task_details(task, stats, use_html=False)
+            
+            await query.edit_message_text(
+                text,
+                parse_mode=parse_mode,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
         
-        await query.edit_message_text(
-            f"📱 **الجلسة: {session['name']}**\n\n"
-            f"الهاتف: {session['phone']}\n"
-            f"الحالة: {status}\n"
-            f"تاريخ الإضافة: {session['created_at'][:10]}",
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        elif data.startswith("start_task_"):
+            task_id = int(data.split("_")[2])
+            result = await task_runner.start_task(task_id)
+            
+            if result:
+                await query.answer("✅ تم تشغيل المهمة!")
+                db.update_task_status(task_id, True)
+            else:
+                await query.answer("❌ فشل تشغيل المهمة!")
+        
+        elif data.startswith("stop_task_"):
+            task_id = int(data.split("_")[2])
+            await task_runner.stop_task(task_id)
+            db.update_task_status(task_id, False)
+            
+            await query.answer("⏸️ تم إيقاف المهمة!")
+        
+        elif data.startswith("refresh_stats_"):
+            task_id = int(data.split("_")[2])
+            task = db.get_task(task_id)
+            stats = db.get_task_stats(task_id)
+            
+            keyboard = []
+            if task['is_running']:
+                keyboard.append([InlineKeyboardButton("⏸️ إيقاف", callback_data=f"stop_task_{task_id}")])
+            else:
+                keyboard.append([InlineKeyboardButton("▶️ تشغيل", callback_data=f"start_task_{task_id}")])
+            
+            keyboard.append([InlineKeyboardButton("🔄 تحديث الإحصائيات", callback_data=f"refresh_stats_{task_id}")])
+            keyboard.append([InlineKeyboardButton("🗑️ حذف", callback_data=f"delete_task_{task_id}")])
+            keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="back_tasks")])
+            
+            from text_formatter import TextFormatter
+            text, parse_mode = TextFormatter.format_task_details(task, stats, use_html=False)
+            
+            await query.edit_message_text(
+                text,
+                parse_mode=parse_mode,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            
+            await query.answer("🔄 تم تحديث الإحصائيات!")
+        
+        elif data.startswith("delete_task_"):
+            task_id = int(data.split("_")[2])
+            
+            # إيقاف المهمة أولاً إذا كانت قيد التشغيل
+            result = await task_runner.delete_task(task_id)
+            
+            # حذف من قاعدة البيانات
+            db.delete_task(task_id)
+            
+            await query.edit_message_text("✅ تم حذف المهمة بنجاح!")
     
-    elif data.startswith("toggle_session_"):
-        session_id = int(data.split("_")[2])
-        db.toggle_session(session_id)
-        
-        session = db.get_session(session_id)
-        status = "مفعلة ✅" if session['is_active'] else "معطلة ❌"
-        
-        keyboard = [
-            [InlineKeyboardButton("🔄 تفعيل/تعطيل", callback_data=f"toggle_session_{session_id}")],
-            [InlineKeyboardButton("🗑️ حذف", callback_data=f"delete_session_{session_id}")],
-            [InlineKeyboardButton("🔙 رجوع", callback_data="back_sessions")]
-        ]
-        
-        await query.edit_message_text(
-            f"📱 **الجلسة: {session['name']}**\n\n"
-            f"الهاتف: {session['phone']}\n"
-            f"الحالة: {status}\n"
-            f"تاريخ الإضافة: {session['created_at'][:10]}",
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-    
-    elif data.startswith("delete_session_"):
-        session_id = int(data.split("_")[2])
-        db.delete_session(session_id)
-        await query.edit_message_text("✅ تم حذف الجلسة بنجاح!")
-    
-    elif data.startswith("task_"):
-        task_id = int(data.split("_")[1])
-        task = db.get_task(task_id)
-        
-        if not task:
-            await query.edit_message_text("❌ المهمة غير موجودة.")
-            return
-        
-        stats = db.get_stats(task_id)
-        
-        keyboard = []
-        
-        if task['is_running']:
-            keyboard.append([InlineKeyboardButton("⏸️ إيقاف", callback_data=f"stop_task_{task_id}")])
-        else:
-            keyboard.append([InlineKeyboardButton("▶️ تشغيل", callback_data=f"start_task_{task_id}")])
-        
-        keyboard.append([InlineKeyboardButton("🔄 تحديث الإحصائيات", callback_data=f"task_{task_id}")])
-        keyboard.append([InlineKeyboardButton("🗑️ حذف", callback_data=f"delete_task_{task_id}")])
-        keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="back_tasks")])
-        
-        status = "قيد التشغيل ▶️" if task['is_running'] else "متوقفة ⏸️"
-        
-        from html import escape
-        
-        await query.edit_message_text(
-            f"📋 <b>المهمة: {escape(task['name'])}</b>\n\n"
-            f"الجلسة: {escape(task['session_name'])}\n"
-            f"البوت المستهدف: {escape(task['target_bot'])}\n"
-            f"الأمر: <code>{escape(task['command'])}</code>\n"
-            f"الفاصل الزمني: {task['interval_seconds']}ث\n"
-            f"الحالة: {status}\n\n"
-            f"📊 <b>الإحصائيات:</b>\n"
-            f"المرسل: {stats['total_sent']}\n"
-            f"الناجح: {stats['total_success']}\n"
-            f"الفاشل: {stats['total_failed']}\n\n"
-            f"ℹ️ اضغط '🔄 تحديث الإحصائيات' للتحديث",
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-    
-    elif data.startswith("start_task_"):
-        task_id = int(data.split("_")[2])
-        result = await task_runner.start_task(task_id)
-        
-        if result['status'] == 'success':
-            await query.answer("✅ تم بدء المهمة!", show_alert=True)
-        else:
-            await query.answer(f"❌ {result['message']}", show_alert=True)
-    
-    elif data.startswith("stop_task_"):
-        task_id = int(data.split("_")[2])
-        result = await task_runner.stop_task(task_id)
-        
-        if result['status'] == 'success':
-            await query.answer("✅ تم إيقاف المهمة!", show_alert=True)
-        else:
-            await query.answer(f"❌ {result['message']}", show_alert=True)
-    
-    elif data.startswith("delete_task_"):
-        task_id = int(data.split("_")[2])
-        
-        # إيقاف المهمة أولاً إذا كانت قيد التشغيل
-        result = await task_runner.delete_task(task_id)
-        
-        # حذف من قاعدة البيانات
-        db.delete_task(task_id)
-        
-        await query.edit_message_text("✅ تم حذف المهمة بنجاح!")
+    except Exception as e:
+        # معالجة أي خطأ يحدث
+        logger.error(f"خطأ في button_callback: {e}")
+        try:
+            await query.edit_message_text(
+                "❌ حدث خطأ! الرجاء المحاولة مرة أخرى."
+            )
+        except:
+            # إذا فشل edit_message_text
+            await query.message.reply_text(
+                "❌ حدث خطأ! الرجاء المحاولة مرة أخرى."
+            )
 
 # ============= الإحصائيات والمساعدة =============
 

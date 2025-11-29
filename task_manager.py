@@ -171,11 +171,15 @@ class TaskRunner:
                 message = f"{task['command']} {card}"
                 
                 # إرسال الرسالة
-                result = await self.session_manager.send_message(
+                try:
+                    result = await self.session_manager.send_message(
                     session['id'],
                     task['target_bot'],
                     message
                 )
+                except Exception as send_error:
+                    logger.error(f"خطأ في إرسال الرسالة: {send_error}")
+                    result = {'status': 'error', 'message': str(send_error)}
                 
                 # تسجيل النتيجة
                 if result['status'] == 'success':
