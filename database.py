@@ -281,6 +281,10 @@ class Database:
         self.conn.commit()
         return True
     
+    def update_task_status(self, task_id: int, is_running: bool) -> bool:
+        """تحديث حالة المهمة (اسم بديل لـ set_task_running)"""
+        return self.set_task_running(task_id, is_running)
+    
     def delete_task(self, task_id: int) -> bool:
         """حذف مهمة"""
         # حذف الإحصائيات والسجلات المرتبطة
