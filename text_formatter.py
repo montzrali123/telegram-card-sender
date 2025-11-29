@@ -67,12 +67,17 @@ class TextFormatter:
         """تنسيق تفاصيل الجلسة بشكل آمن"""
         status = "مفعلة ✅" if session['is_active'] else "معطلة ❌"
         
+        # معالجة تاريخ الإضافة
+        created_at = session.get('created_at', 'غير متوفر')
+        if created_at and created_at != 'غير متوفر':
+            created_at = created_at[:10]
+        
         if use_html:
             text = (
                 f"📱 <b>الجلسة: {html_escape(session['name'])}</b>\n\n"
                 f"رقم الهاتف: <code>{html_escape(session['phone'])}</code>\n"
                 f"الحالة: {status}\n"
-                f"تاريخ الإضافة: {session['created_at'][:10]}"
+                f"تاريخ الإضافة: {created_at}"
             )
             return text, ParseMode.HTML
         else:
@@ -80,7 +85,7 @@ class TextFormatter:
                 f"📱 الجلسة: {session['name']}\n\n"
                 f"رقم الهاتف: {session['phone']}\n"
                 f"الحالة: {status}\n"
-                f"تاريخ الإضافة: {session['created_at'][:10]}"
+                f"تاريخ الإضافة: {created_at}"
             )
             return text, None
     
