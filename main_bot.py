@@ -13,7 +13,7 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-from telegram.constants import ParseMode
+# from telegram.constants import ParseMode  # تم إزالته لتجنب أخطاء parsing
 
 from database import Database
 from session_manager import SessionManager
@@ -110,7 +110,7 @@ async def show_sessions_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     await update.message.reply_text(
         text,
-        parse_mode=ParseMode.MARKDOWN,
+        
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
     
@@ -126,7 +126,7 @@ async def session_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             "أرسل رقم الهاتف بالصيغة الدولية:\n"
             "مثال: +9647XXXXXXXXX\n\n"
             "أو اضغط /cancel للإلغاء",
-            parse_mode=ParseMode.MARKDOWN,
+            
             reply_markup=ReplyKeyboardRemove()
         )
         return ADD_SESSION_PHONE
@@ -182,7 +182,7 @@ async def add_session_phone(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await update.message.reply_text(
         "📝 أدخل **API ID** الخاص بك:\n\n"
         "يمكنك الحصول عليه من: https://my.telegram.org",
-        parse_mode=ParseMode.MARKDOWN
+        
     )
     
     # سنطلب API ID و API Hash
@@ -199,7 +199,7 @@ async def add_session_api_data(update: Update, context: ContextTypes.DEFAULT_TYP
         
         await update.message.reply_text(
             "📝 الآن أدخل **API Hash**:",
-            parse_mode=ParseMode.MARKDOWN
+            
         )
         return ADD_SESSION_CODE
     
@@ -352,7 +352,7 @@ async def show_tasks_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     await update.message.reply_text(
         text,
-        parse_mode=ParseMode.MARKDOWN,
+        
         reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     )
     
@@ -366,7 +366,7 @@ async def task_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await update.message.reply_text(
             "📝 **إنشاء مهمة جديدة**\n\n"
             "أدخل اسم المهمة:",
-            parse_mode=ParseMode.MARKDOWN,
+            
             reply_markup=ReplyKeyboardRemove()
         )
         return CREATE_TASK_NAME
@@ -732,7 +732,7 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     text += f"📋 عدد المهام: {tasks_count}\n"
     text += f"▶️ المهام قيد التشغيل: {running_tasks}\n"
     
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(text)
     return MAIN_MENU
 
 async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -759,7 +759,7 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 **للدعم:** @YourSupport
     """
     
-    await update.message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    await update.message.reply_text(text)
     return MAIN_MENU
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
