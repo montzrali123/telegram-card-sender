@@ -338,6 +338,10 @@ class Database:
             'finished_at': row['finished_at']
         }
     
+    def get_task_stats(self, task_id: int) -> Optional[Dict[str, Any]]:
+        """الحصول على إحصائيات مهمة (اسم بديل لـ get_stats)"""
+        return self.get_stats(task_id)
+    
     def start_task_stats(self, task_id: int):
         """بدء تسجيل إحصائيات المهمة"""
         now = datetime.now().isoformat()
