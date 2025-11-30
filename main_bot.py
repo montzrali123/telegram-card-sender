@@ -102,7 +102,10 @@ async def show_monitors_menu_wrapper(update: Update, context: ContextTypes.DEFAU
     return await show_monitors_menu(update, context, db, group_monitor)
 
 async def add_monitor_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """بدء إضافة مراقبة جديدة - مباشرة باختيار الجلسة"""
+    """
+    بدء إضافة مراقبة جديدة - مباشرة باختيار الجلسة
+    يتم توليد اسم المراقبة تلقائياً
+    """
     # توليد اسم تلقائي للمراقبة
     import time
     monitor_name = f"Monitor_{int(time.time())}"
