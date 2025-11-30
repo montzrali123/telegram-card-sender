@@ -19,6 +19,8 @@ from telegram.ext import (
 from database import Database
 from session_manager import SessionManager
 from task_manager import CardFileManager, TaskRunner
+from group_monitor import GroupMonitor, CardExtractor
+from monitor_handlers import show_monitors_menu, handle_monitor_callback
 
 # إعداد السجلات
 logging.basicConfig(
@@ -37,6 +39,7 @@ db = Database()
 session_manager = SessionManager()
 card_manager = CardFileManager()
 task_runner = TaskRunner(db, session_manager, card_manager)
+group_monitor = GroupMonitor(session_manager, db)
 
 # معرف المالك
 OWNER_ID = int(os.getenv("OWNER_ID", "0"))
@@ -57,7 +60,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     keyboard = [
         ["👥 إدارة الجلسات", "📋 إدارة المهام"],
-        ["📊 الإحصائيات", "ℹ️ المساعدة"],
+        ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+        ["ℹ️ المساعدة"]
     ]
     
     await update.message.reply_text(
@@ -78,6 +82,8 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return await show_sessions_menu(update, context)
     elif text == "📋 إدارة المهام":
         return await show_tasks_menu(update, context)
+    elif text == "👁️ مراقبة القروبات":
+        return await show_monitors_menu_wrapper(update, context)
     elif text == "📊 الإحصائيات":
         return await show_stats(update, context)
     elif text == "ℹ️ المساعدة":
@@ -85,6 +91,12 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     else:
         await update.message.reply_text("اختر من القائمة من فضلك.")
         return MAIN_MENU
+
+# ============= مراقبة القروبات =============
+
+async def show_monitors_menu_wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """غلاف لعرض قائمة المراقبات"""
+    return await show_monitors_menu(update, context, db, group_monitor)
 
 # ============= إدارة الجلسات =============
 
@@ -754,6 +766,10 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db.delete_task(task_id)
             
             await query.edit_message_text("✅ تم حذف المهمة بنجاح!")
+        
+        # معالجة callbacks المراقبة
+        elif data.startswith(("monitor_", "add_monitor", "start_monitor_", "stop_monitor_", "delete_monitor_")):
+            await handle_monitor_callback(query, data, db, group_monitor)
     
     except Exception as e:
         # معالجة أي خطأ يحدث

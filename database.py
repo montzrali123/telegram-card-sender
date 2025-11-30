@@ -111,6 +111,38 @@ class Database:
             )
         """)
         
+        # جدول مراقبة القروبات/القنوات
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS monitors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                session_id INTEGER NOT NULL,
+                chat_id TEXT NOT NULL,
+                target_bot TEXT NOT NULL,
+                target_command TEXT NOT NULL,
+                auto_send INTEGER DEFAULT 1,
+                is_active INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES sessions (id)
+            )
+        """)
+        
+        # جدول البطاقات المستخرجة
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS extracted_cards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monitor_id INTEGER NOT NULL,
+                card_data TEXT NOT NULL,
+                target_bot TEXT,
+                target_command TEXT,
+                sent INTEGER DEFAULT 0,
+                response TEXT,
+                status TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (monitor_id) REFERENCES monitors (id)
+            )
+        """)
+        
         self.conn.commit()
     
     def encrypt_data(self, data: str) -> str:
@@ -398,3 +430,137 @@ class Database:
         """إغلاق الاتصال بقاعدة البيانات"""
         if self.conn:
             self.conn.close()
+
+    # ========== إدارة المراقبة ==========
+    
+    def add_monitor(self, name: str, session_id: int, chat_id: str, 
+                   target_bot: str, target_command: str, auto_send: bool = True) -> int:
+        """إضافة مراقبة جديدة"""
+        self.cursor.execute("""
+            INSERT INTO monitors (name, session_id, chat_id, target_bot, target_command, auto_send)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (name, session_id, chat_id, target_bot, target_command, 1 if auto_send else 0))
+        
+        self.conn.commit()
+        return self.cursor.lastrowid
+    
+    def get_monitors(self, active_only: bool = False) -> List[Dict[str, Any]]:
+        """الحصول على قائمة المراقبات"""
+        query = "SELECT * FROM monitors"
+        if active_only:
+            query += " WHERE is_active = 1"
+        query += " ORDER BY created_at DESC"
+        
+        self.cursor.execute(query)
+        rows = self.cursor.fetchall()
+        
+        monitors = []
+        for row in rows:
+            monitors.append({
+                'id': row[0],
+                'name': row[1],
+                'session_id': row[2],
+                'chat_id': row[3],
+                'target_bot': row[4],
+                'target_command': row[5],
+                'auto_send': bool(row[6]),
+                'is_active': bool(row[7]),
+                'created_at': row[8]
+            })
+        
+        return monitors
+    
+    def get_monitor(self, monitor_id: int) -> Optional[Dict[str, Any]]:
+        """الحصول على مراقبة محددة"""
+        self.cursor.execute("SELECT * FROM monitors WHERE id = ?", (monitor_id,))
+        row = self.cursor.fetchone()
+        
+        if not row:
+            return None
+        
+        return {
+            'id': row[0],
+            'name': row[1],
+            'session_id': row[2],
+            'chat_id': row[3],
+            'target_bot': row[4],
+            'target_command': row[5],
+            'auto_send': bool(row[6]),
+            'is_active': bool(row[7]),
+            'created_at': row[8]
+        }
+    
+    def update_monitor_status(self, monitor_id: int, is_active: bool):
+        """تحديث حالة المراقبة"""
+        self.cursor.execute("""
+            UPDATE monitors SET is_active = ? WHERE id = ?
+        """, (1 if is_active else 0, monitor_id))
+        self.conn.commit()
+    
+    def delete_monitor(self, monitor_id: int):
+        """حذف مراقبة"""
+        # حذف البطاقات المستخرجة أولاً
+        self.cursor.execute("DELETE FROM extracted_cards WHERE monitor_id = ?", (monitor_id,))
+        # حذف المراقبة
+        self.cursor.execute("DELETE FROM monitors WHERE id = ?", (monitor_id,))
+        self.conn.commit()
+    
+    def add_extracted_card(self, monitor_id: int, card_data: str, 
+                          target_bot: str, target_command: str) -> int:
+        """إضافة بطاقة مستخرجة"""
+        self.cursor.execute("""
+            INSERT INTO extracted_cards (monitor_id, card_data, target_bot, target_command)
+            VALUES (?, ?, ?, ?)
+        """, (monitor_id, card_data, target_bot, target_command))
+        
+        self.conn.commit()
+        return self.cursor.lastrowid
+    
+    def get_extracted_cards(self, monitor_id: Optional[int] = None, 
+                           limit: int = 100) -> List[Dict[str, Any]]:
+        """الحصول على البطاقات المستخرجة"""
+        if monitor_id:
+            query = "SELECT * FROM extracted_cards WHERE monitor_id = ? ORDER BY created_at DESC LIMIT ?"
+            self.cursor.execute(query, (monitor_id, limit))
+        else:
+            query = "SELECT * FROM extracted_cards ORDER BY created_at DESC LIMIT ?"
+            self.cursor.execute(query, (limit,))
+        
+        rows = self.cursor.fetchall()
+        
+        cards = []
+        for row in rows:
+            cards.append({
+                'id': row[0],
+                'monitor_id': row[1],
+                'card_data': row[2],
+                'target_bot': row[3],
+                'target_command': row[4],
+                'sent': bool(row[5]),
+                'response': row[6],
+                'status': row[7],
+                'created_at': row[8]
+            })
+        
+        return cards
+    
+    def get_monitor_stats(self, monitor_id: int) -> Dict[str, Any]:
+        """الحصول على إحصائيات المراقبة"""
+        self.cursor.execute("""
+            SELECT 
+                COUNT(*) as total_cards,
+                SUM(CASE WHEN sent = 1 THEN 1 ELSE 0 END) as sent_cards,
+                SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_cards,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_cards
+            FROM extracted_cards
+            WHERE monitor_id = ?
+        """, (monitor_id,))
+        
+        row = self.cursor.fetchone()
+        
+        return {
+            'total_cards': row[0] or 0,
+            'sent_cards': row[1] or 0,
+            'success_cards': row[2] or 0,
+            'failed_cards': row[3] or 0
+        }
