@@ -402,7 +402,8 @@ async def add_session_api_data(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"📝 الاسم: {session_name}",
                 reply_markup=ReplyKeyboardMarkup([
                     ["👥 إدارة الجلسات", "📋 إدارة المهام"],
-                    ["📊 الإحصائيات", "ℹ️ المساعدة"]
+                    ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+                    ["ℹ️ المساعدة"]
                 ], resize_keyboard=True)
             )
             
@@ -449,7 +450,8 @@ async def add_session_password(update: Update, context: ContextTypes.DEFAULT_TYP
             f"📝 الاسم: {session_name}",
             reply_markup=ReplyKeyboardMarkup([
                 ["👥 إدارة الجلسات", "📋 إدارة المهام"],
-                ["📊 الإحصائيات", "ℹ️ المساعدة"]
+                ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+                ["ℹ️ المساعدة"]
             ], resize_keyboard=True)
         )
         
@@ -728,7 +730,8 @@ async def create_task_interval(update: Update, context: ContextTypes.DEFAULT_TYP
             f"يمكنك تشغيلها من قائمة المهام.",
             reply_markup=ReplyKeyboardMarkup([
                 ["👥 إدارة الجلسات", "📋 إدارة المهام"],
-                ["📊 الإحصائيات", "ℹ️ المساعدة"]
+                ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+                ["ℹ️ المساعدة"]
             ], resize_keyboard=True)
         )
         
@@ -972,7 +975,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         "تم الإلغاء.",
         reply_markup=ReplyKeyboardMarkup([
             ["👥 إدارة الجلسات", "📋 إدارة المهام"],
-            ["📊 الإحصائيات", "ℹ️ المساعدة"]
+            ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+            ["ℹ️ المساعدة"]
         ], resize_keyboard=True)
     )
     context.user_data.clear()
