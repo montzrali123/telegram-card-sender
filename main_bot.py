@@ -206,6 +206,7 @@ async def add_monitor_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def add_monitor_bot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """حفظ البوت المستهدف"""
     text = update.message.text.strip()
+    logger.info(f"🤖 add_monitor_bot: استلم البوت: {text}")
     
     # فحص: إذا كان النص من أزرار القائمة، إلغاء
     main_menu_buttons = ["👥 إدارة الجلسات", "📋 إدارة المهام", "👁️ مراقبة القروبات", "📊 الإحصائيات", "ℹ️ المساعدة"]
@@ -235,6 +236,7 @@ async def add_monitor_bot(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def add_monitor_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """حفظ الأمر وإضافة المراقبة"""
     command = update.message.text.strip()
+    logger.info(f"👁️ add_monitor_command: استلم الأمر: {command}")
     
     # فحص: إذا كان النص من أزرار القائمة الرئيسية، إلغاء والرجوع
     main_menu_buttons = ["👥 إدارة الجلسات", "📋 إدارة المهام", "👁️ مراقبة القروبات", "📊 الإحصائيات", "ℹ️ المساعدة"]
@@ -251,6 +253,7 @@ async def add_monitor_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         return MAIN_MENU
     
     # حفظ المراقبة في قاعدة البيانات
+    logger.info(f"💾 حفظ المراقبة: {context.user_data.get('monitor_name')}")
     monitor_id = db.add_monitor(
         name=context.user_data['monitor_name'],
         session_id=context.user_data['monitor_session_id'],
