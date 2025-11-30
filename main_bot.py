@@ -135,8 +135,24 @@ async def add_monitor_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def add_monitor_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """حفظ الجلسة"""
+    text = update.message.text.strip()
+    
+    # فحص: إذا كان النص من أزرار القائمة، إلغاء
+    main_menu_buttons = ["👥 إدارة الجلسات", "📋 إدارة المهام", "👁️ مراقبة القروبات", "📊 الإحصائيات", "ℹ️ المساعدة"]
+    if text in main_menu_buttons:
+        await update.message.reply_text(
+            "❌ تم إلغاء إضافة المراقبة.",
+            reply_markup=ReplyKeyboardMarkup([
+                ["👥 إدارة الجلسات", "📋 إدارة المهام"],
+                ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+                ["ℹ️ المساعدة"]
+            ], resize_keyboard=True)
+        )
+        context.user_data.clear()
+        return MAIN_MENU
+    
     try:
-        session_num = int(update.message.text)
+        session_num = int(text)
         sessions = context.user_data.get('available_sessions', [])
         
         if 1 <= session_num <= len(sessions):
@@ -161,7 +177,23 @@ async def add_monitor_session(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def add_monitor_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """حفظ معرّف القروب"""
-    context.user_data['monitor_chat_id'] = update.message.text
+    text = update.message.text.strip()
+    
+    # فحص: إذا كان النص من أزرار القائمة، إلغاء
+    main_menu_buttons = ["👥 إدارة الجلسات", "📋 إدارة المهام", "👁️ مراقبة القروبات", "📊 الإحصائيات", "ℹ️ المساعدة"]
+    if text in main_menu_buttons:
+        await update.message.reply_text(
+            "❌ تم إلغاء إضافة المراقبة.",
+            reply_markup=ReplyKeyboardMarkup([
+                ["👥 إدارة الجلسات", "📋 إدارة المهام"],
+                ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+                ["ℹ️ المساعدة"]
+            ], resize_keyboard=True)
+        )
+        context.user_data.clear()
+        return MAIN_MENU
+    
+    context.user_data['monitor_chat_id'] = text
     
     await update.message.reply_text(
         "🤖 **البوت المستهدف:**\n\n"
@@ -173,7 +205,23 @@ async def add_monitor_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def add_monitor_bot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """حفظ البوت المستهدف"""
-    bot_username = update.message.text.strip().replace('@', '')
+    text = update.message.text.strip()
+    
+    # فحص: إذا كان النص من أزرار القائمة، إلغاء
+    main_menu_buttons = ["👥 إدارة الجلسات", "📋 إدارة المهام", "👁️ مراقبة القروبات", "📊 الإحصائيات", "ℹ️ المساعدة"]
+    if text in main_menu_buttons:
+        await update.message.reply_text(
+            "❌ تم إلغاء إضافة المراقبة.",
+            reply_markup=ReplyKeyboardMarkup([
+                ["👥 إدارة الجلسات", "📋 إدارة المهام"],
+                ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+                ["ℹ️ المساعدة"]
+            ], resize_keyboard=True)
+        )
+        context.user_data.clear()
+        return MAIN_MENU
+    
+    bot_username = text.replace('@', '')
     context.user_data['monitor_bot'] = bot_username
     
     await update.message.reply_text(
@@ -187,6 +235,20 @@ async def add_monitor_bot(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def add_monitor_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """حفظ الأمر وإضافة المراقبة"""
     command = update.message.text.strip()
+    
+    # فحص: إذا كان النص من أزرار القائمة الرئيسية، إلغاء والرجوع
+    main_menu_buttons = ["👥 إدارة الجلسات", "📋 إدارة المهام", "👁️ مراقبة القروبات", "📊 الإحصائيات", "ℹ️ المساعدة"]
+    if command in main_menu_buttons:
+        await update.message.reply_text(
+            "❌ تم إلغاء إضافة المراقبة.",
+            reply_markup=ReplyKeyboardMarkup([
+                ["👥 إدارة الجلسات", "📋 إدارة المهام"],
+                ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+                ["ℹ️ المساعدة"]
+            ], resize_keyboard=True)
+        )
+        context.user_data.clear()
+        return MAIN_MENU
     
     # حفظ المراقبة في قاعدة البيانات
     monitor_id = db.add_monitor(
