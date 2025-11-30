@@ -1007,7 +1007,10 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_handler)],
+            MAIN_MENU: [
+                CallbackQueryHandler(button_callback),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_handler)
+            ],
             SESSION_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, session_menu_handler)],
             ADD_SESSION_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_session_phone)],
             ADD_SESSION_CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_session_api_data)],
@@ -1019,7 +1022,10 @@ def main():
             CREATE_TASK_COMMAND: [MessageHandler(filters.TEXT, create_task_command)],
             CREATE_TASK_FILE: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, create_task_file)],
             CREATE_TASK_INTERVAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_interval)],
-            ADD_MONITOR_SESSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_session)],
+            ADD_MONITOR_SESSION: [
+                CallbackQueryHandler(button_callback),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_session)
+            ],
             ADD_MONITOR_CHAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_chat)],
             ADD_MONITOR_BOT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_bot)],
             ADD_MONITOR_COMMAND: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_command)],
@@ -1027,8 +1033,7 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     
-    # إضافة CallbackQueryHandler قبل ConversationHandler لإعطائه الأولوية
-    app.add_handler(CallbackQueryHandler(button_callback))
+    # إضافة ConversationHandler
     app.add_handler(conv_handler)
     
     logger.info("🚀 البوت يعمل الآن...")
