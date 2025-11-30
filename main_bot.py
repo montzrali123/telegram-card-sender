@@ -756,6 +756,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     except Exception as e:
         # معالجة أي خطأ يحدث
+        error_msg = str(e)
+        
+        # تجاهل خطأ "Message is not modified" لأنه ليس خطأ حقيقي
+        if "Message is not modified" in error_msg:
+            logger.info(f"تم تجاهل خطأ 'Message is not modified' - المحتوى لم يتغير")
+            return
+        
         logger.error(f"خطأ في button_callback: {e}")
         try:
             await query.edit_message_text(
@@ -763,9 +770,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except:
             # إذا فشل edit_message_text
-            await query.message.reply_text(
-                "❌ حدث خطأ! الرجاء المحاولة مرة أخرى."
-            )
+            try:
+                await query.message.reply_text(
+                    "❌ حدث خطأ! الرجاء المحاولة مرة أخرى."
+                )
+            except:
+                pass
 
 # ============= الإحصائيات والمساعدة =============
 
