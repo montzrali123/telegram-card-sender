@@ -34,8 +34,8 @@ logger = logging.getLogger(__name__)
 (MAIN_MENU, SESSION_MENU, ADD_SESSION_PHONE, ADD_SESSION_CODE, ADD_SESSION_PASSWORD,
  TASK_MENU, CREATE_TASK_NAME, CREATE_TASK_SESSION, CREATE_TASK_BOT, CREATE_TASK_COMMAND,
  CREATE_TASK_FILE, CREATE_TASK_INTERVAL,
- MONITOR_MENU, ADD_MONITOR_NAME, ADD_MONITOR_SESSION, ADD_MONITOR_CHAT, 
- ADD_MONITOR_BOT, ADD_MONITOR_COMMAND) = range(18)
+ MONITOR_MENU, ADD_MONITOR_SESSION, ADD_MONITOR_CHAT, 
+ ADD_MONITOR_BOT, ADD_MONITOR_COMMAND) = range(17)
 
 # تهيئة الأنظمة
 db = Database()
@@ -102,18 +102,11 @@ async def show_monitors_menu_wrapper(update: Update, context: ContextTypes.DEFAU
     return await show_monitors_menu(update, context, db, group_monitor)
 
 async def add_monitor_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """بدء إضافة مراقبة جديدة"""
-    await update.message.reply_text(
-        "⚡ **إضافة مراقبة جديدة**\n\n"
-        "📝 أدخل اسم المراقبة:\n"
-        "مثال: قروب البطاقات الرئيسي\n\n"
-        "أو اضغط /cancel للإلغاء"
-    )
-    return ADD_MONITOR_NAME
-
-async def add_monitor_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """حفظ اسم المراقبة"""
-    context.user_data['monitor_name'] = update.message.text
+    """بدء إضافة مراقبة جديدة - مباشرة باختيار الجلسة"""
+    # توليد اسم تلقائي للمراقبة
+    import time
+    monitor_name = f"Monitor_{int(time.time())}"
+    context.user_data['monitor_name'] = monitor_name
     
     # عرض قائمة الجلسات
     sessions = db.get_sessions(active_only=True)
@@ -125,11 +118,13 @@ async def add_monitor_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return ConversationHandler.END
     
-    text = "👥 **اختر الجلسة:**\n\n"
+    text = "⚡ **إضافة مراقبة جديدة**\n\n"
+    text += "👥 **اختر الجلسة:**\n\n"
     for i, session in enumerate(sessions, 1):
         text += f"{i}. 📱 {session['name']} - {session['phone']}\n"
     
-    text += "\nأرسل رقم الجلسة:"
+    text += "\n📝 أرسل رقم الجلسة:"
+    text += "\n\n💡 أو اضغط /cancel للإلغاء"
     
     context.user_data['available_sessions'] = sessions
     await update.message.reply_text(text)
@@ -1024,7 +1019,6 @@ def main():
             CREATE_TASK_COMMAND: [MessageHandler(filters.TEXT, create_task_command)],
             CREATE_TASK_FILE: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, create_task_file)],
             CREATE_TASK_INTERVAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_interval)],
-            ADD_MONITOR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_name)],
             ADD_MONITOR_SESSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_session)],
             ADD_MONITOR_CHAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_chat)],
             ADD_MONITOR_BOT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_bot)],
