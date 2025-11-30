@@ -3,6 +3,7 @@
 """
 import logging
 import os
+import time
 from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -891,15 +892,28 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # معالجة callbacks المراقبة
         elif data == "start_add_monitor":
-            # بدء إضافة مراقبة جديدة
-            await query.message.reply_text(
-                "⚡ **إضافة مراقبة جديدة**\n\n"
-                "📝 أدخل اسم المراقبة:\n"
-                "مثال: قروب البطاقات الرئيسي\n\n"
-                "أو اضغط /cancel للإلغاء"
-            )
+            # بدء إضافة مراقبة جديدة - عرض الجلسات مباشرة
+            sessions = db.get_sessions(active_only=True)
+            
+            if not sessions:
+                await query.message.reply_text(
+                    "❌ لا توجد جلسات نشطة!\n\n"
+                    "أضف جلسة أولاً من 'إدارة الجلسات'"
+                )
+                await query.answer()
+                return ConversationHandler.END
+            
+            text = "⚡ **إضافة مراقبة جديدة**\n\n👥 **اختر الجلسة:**\n\n"
+            for i, session in enumerate(sessions, 1):
+                text += f"{i}. 📱 {session['name']} - {session['phone']}\n"
+            
+            text += "\nأرسل رقم الجلسة:"
+            
+            context.user_data['available_sessions'] = sessions
+            context.user_data['monitor_name'] = "Monitor_" + str(int(time.time()))  # اسم تلقائي
+            await query.message.reply_text(text)
             await query.answer()
-            return ADD_MONITOR_NAME
+            return ADD_MONITOR_SESSION
         elif data.startswith(("monitor_", "add_monitor", "start_monitor_", "stop_monitor_", "delete_monitor_")):
             await handle_monitor_callback(query, data, db, group_monitor)
     
