@@ -100,9 +100,24 @@ class GroupMonitor:
                 return False
             
             # تحميل الجلسة
-            client = await self.session_manager.load_session(monitor['session_id'])
-            if not client:
+            session = self.db.get_session(monitor['session_id'])
+            if not session:
+                logger.error(f"الجلسة {monitor['session_id']} غير موجودة")
+                return False
+            
+            success = await self.session_manager.load_session(
+                monitor['session_id'],
+                session['api_id'],
+                session['api_hash'],
+                session['session_string']
+            )
+            if not success:
                 logger.error(f"فشل تحميل الجلسة {monitor['session_id']}")
+                return False
+            
+            client = self.session_manager.get_client(monitor['session_id'])
+            if not client:
+                logger.error(f"فشل الحصول على client للجلسة {monitor['session_id']}")
                 return False
             
             # إعداد معالج الرسائل
@@ -191,10 +206,10 @@ class GroupMonitor:
     async def _send_to_target_bot(self, monitor: Dict[str, Any], card: str):
         """إرسال البطاقة للبوت المستهدف"""
         try:
-            # تحميل الجلسة
-            client = await self.session_manager.load_session(monitor['session_id'])
+            # الحصول على الجلسة النشطة
+            client = self.session_manager.get_client(monitor['session_id'])
             if not client:
-                logger.error(f"فشل تحميل الجلسة {monitor['session_id']}")
+                logger.error(f"الجلسة {monitor['session_id']} غير نشطة")
                 return
             
             # إرسال الأمر للبوت
