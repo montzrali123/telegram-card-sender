@@ -32,7 +32,7 @@ async def show_monitors_menu(update: Update, context: ContextTypes.DEFAULT_TYPE,
                 )
             ])
         
-        keyboard.append([InlineKeyboardButton("➕ إضافة مراقبة جديدة", callback_data="add_monitor")])
+        keyboard.append([InlineKeyboardButton("➡️ إضافة مراقبة جديدة", callback_data="start_add_monitor")])
         keyboard.append([InlineKeyboardButton("🔙 رجوع", callback_data="back_main")])
         
         await update.message.reply_text(
@@ -48,7 +48,7 @@ async def show_monitors_menu(update: Update, context: ContextTypes.DEFAULT_TYPE,
         text += "4. يرسلها للبوت المستهدف فوراً\n\n"
         
         keyboard = [
-            [InlineKeyboardButton("➕ إضافة مراقبة جديدة", callback_data="add_monitor")],
+            [InlineKeyboardButton("➡️ إضافة مراقبة جديدة", callback_data="start_add_monitor")],
             [InlineKeyboardButton("🔙 رجوع", callback_data="back_main")]
         ]
         
@@ -64,14 +64,9 @@ async def handle_monitor_callback(query, data, db, group_monitor):
     """معالجة callbacks المراقبة"""
     
     if data == "add_monitor":
-        # TODO: إضافة مراقبة جديدة
-        await query.edit_message_text(
-            "🚧 ميزة إضافة مراقبة جديدة قيد التطوير...\n\n"
-            "قريباً ستتمكن من:\n"
-            "✅ إضافة قروب/قناة للمراقبة\n"
-            "✅ تحديد البوت المستهدف\n"
-            "✅ تفعيل الإرسال التلقائي"
-        )
+        # لا نفعل شيء هنا - سيتم معالجته عبر ConversationHandler
+        await query.answer("⚡ استخدم القائمة الرئيسية لإضافة مراقبة")
+        return
     
     elif data.startswith("monitor_"):
         monitor_id = int(data.split("_")[1])

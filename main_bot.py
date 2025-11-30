@@ -32,7 +32,9 @@ logger = logging.getLogger(__name__)
 # حالات المحادثة
 (MAIN_MENU, SESSION_MENU, ADD_SESSION_PHONE, ADD_SESSION_CODE, ADD_SESSION_PASSWORD,
  TASK_MENU, CREATE_TASK_NAME, CREATE_TASK_SESSION, CREATE_TASK_BOT, CREATE_TASK_COMMAND,
- CREATE_TASK_FILE, CREATE_TASK_INTERVAL) = range(12)
+ CREATE_TASK_FILE, CREATE_TASK_INTERVAL,
+ MONITOR_MENU, ADD_MONITOR_NAME, ADD_MONITOR_SESSION, ADD_MONITOR_CHAT, 
+ ADD_MONITOR_BOT, ADD_MONITOR_COMMAND) = range(18)
 
 # تهيئة الأنظمة
 db = Database()
@@ -97,6 +99,123 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def show_monitors_menu_wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """غلاف لعرض قائمة المراقبات"""
     return await show_monitors_menu(update, context, db, group_monitor)
+
+async def add_monitor_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """بدء إضافة مراقبة جديدة"""
+    await update.message.reply_text(
+        "⚡ **إضافة مراقبة جديدة**\n\n"
+        "📝 أدخل اسم المراقبة:\n"
+        "مثال: قروب البطاقات الرئيسي\n\n"
+        "أو اضغط /cancel للإلغاء"
+    )
+    return ADD_MONITOR_NAME
+
+async def add_monitor_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """حفظ اسم المراقبة"""
+    context.user_data['monitor_name'] = update.message.text
+    
+    # عرض قائمة الجلسات
+    sessions = db.get_sessions(active_only=True)
+    
+    if not sessions:
+        await update.message.reply_text(
+            "❌ لا توجد جلسات نشطة!\n\n"
+            "أضف جلسة أولاً من 'إدارة الجلسات'"
+        )
+        return ConversationHandler.END
+    
+    text = "👥 **اختر الجلسة:**\n\n"
+    for i, session in enumerate(sessions, 1):
+        text += f"{i}. 📱 {session['name']} - {session['phone']}\n"
+    
+    text += "\nأرسل رقم الجلسة:"
+    
+    context.user_data['available_sessions'] = sessions
+    await update.message.reply_text(text)
+    return ADD_MONITOR_SESSION
+
+async def add_monitor_session(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """حفظ الجلسة"""
+    try:
+        session_num = int(update.message.text)
+        sessions = context.user_data.get('available_sessions', [])
+        
+        if 1 <= session_num <= len(sessions):
+            context.user_data['monitor_session_id'] = sessions[session_num - 1]['id']
+            
+            await update.message.reply_text(
+                "🎯 **معرّف القروب/القناة:**\n\n"
+                "📝 أدخل معرّف القروب أو القناة:\n\n"
+                "🔹 إذا كان عام: @groupname\n"
+                "🔹 إذا كان خاص: -1001234567890\n\n"
+                "💡 **كيف تحصل على المعرّف:**\n"
+                "1. أضف @userinfobot للقروب\n"
+                "2. سيرسل لك المعرّف"
+            )
+            return ADD_MONITOR_CHAT
+        else:
+            await update.message.reply_text("❌ رقم غير صحيح. حاول مرة أخرى.")
+            return ADD_MONITOR_SESSION
+    except ValueError:
+        await update.message.reply_text("❌ أدخل رقماً صحيحاً.")
+        return ADD_MONITOR_SESSION
+
+async def add_monitor_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """حفظ معرّف القروب"""
+    context.user_data['monitor_chat_id'] = update.message.text
+    
+    await update.message.reply_text(
+        "🤖 **البوت المستهدف:**\n\n"
+        "📝 أدخل username البوت الذي سيفحص البطاقات:\n"
+        "مثال: BotFather\n\n"
+        "⚠️ بدون @ في البداية"
+    )
+    return ADD_MONITOR_BOT
+
+async def add_monitor_bot(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """حفظ البوت المستهدف"""
+    bot_username = update.message.text.strip().replace('@', '')
+    context.user_data['monitor_bot'] = bot_username
+    
+    await update.message.reply_text(
+        "⚡ **الأمر:**\n\n"
+        "📝 أدخل الأمر الذي سيرسل للبوت:\n"
+        "مثال: /chk أو /start\n\n"
+        "💡 هذا الأمر سيرسل قبل البطاقة"
+    )
+    return ADD_MONITOR_COMMAND
+
+async def add_monitor_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """حفظ الأمر وإضافة المراقبة"""
+    command = update.message.text.strip()
+    
+    # حفظ المراقبة في قاعدة البيانات
+    monitor_id = db.add_monitor(
+        name=context.user_data['monitor_name'],
+        session_id=context.user_data['monitor_session_id'],
+        chat_id=context.user_data['monitor_chat_id'],
+        target_bot=context.user_data['monitor_bot'],
+        target_command=command,
+        auto_send=True
+    )
+    
+    await update.message.reply_text(
+        "✅ **تم إضافة المراقبة بنجاح!**\n\n"
+        f"👁️ الاسم: {context.user_data['monitor_name']}\n"
+        f"🎯 القروب: {context.user_data['monitor_chat_id']}\n"
+        f"🤖 البوت: {context.user_data['monitor_bot']}\n"
+        f"⚡ الأمر: {command}\n\n"
+        "💡 **الخطوة التالية:**\n"
+        "اذهب إلى 'مراقبة القروبات' وشغّل المراقبة!",
+        reply_markup=ReplyKeyboardMarkup([
+            ["👥 إدارة الجلسات", "📋 إدارة المهام"],
+            ["👁️ مراقبة القروبات", "📊 الإحصائيات"],
+            ["ℹ️ المساعدة"]
+        ], resize_keyboard=True)
+    )
+    
+    context.user_data.clear()
+    return MAIN_MENU
 
 # ============= إدارة الجلسات =============
 
@@ -768,6 +887,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("✅ تم حذف المهمة بنجاح!")
         
         # معالجة callbacks المراقبة
+        elif data == "start_add_monitor":
+            # بدء إضافة مراقبة جديدة
+            await query.message.reply_text(
+                "⚡ **إضافة مراقبة جديدة**\n\n"
+                "📝 أدخل اسم المراقبة:\n"
+                "مثال: قروب البطاقات الرئيسي\n\n"
+                "أو اضغط /cancel للإلغاء"
+            )
+            await query.answer()
+            return ADD_MONITOR_NAME
         elif data.startswith(("monitor_", "add_monitor", "start_monitor_", "stop_monitor_", "delete_monitor_")):
             await handle_monitor_callback(query, data, db, group_monitor)
     
@@ -877,6 +1006,11 @@ def main():
             CREATE_TASK_COMMAND: [MessageHandler(filters.TEXT, create_task_command)],
             CREATE_TASK_FILE: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, create_task_file)],
             CREATE_TASK_INTERVAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_interval)],
+            ADD_MONITOR_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_name)],
+            ADD_MONITOR_SESSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_session)],
+            ADD_MONITOR_CHAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_chat)],
+            ADD_MONITOR_BOT: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_bot)],
+            ADD_MONITOR_COMMAND: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_monitor_command)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
