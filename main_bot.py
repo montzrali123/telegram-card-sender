@@ -423,7 +423,7 @@ async def create_task_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     
     keyboard = []
     for session in sessions:
-        keyboard.append([f"{session['name']} - {session['phone']}"])
+        keyboard.append([f"{session['id']}. {session['name']} - {session['phone']}"])
     keyboard.append(["🔙 إلغاء"])
     
     await update.message.reply_text(
@@ -446,7 +446,10 @@ async def create_task_session(update: Update, context: ContextTypes.DEFAULT_TYPE
     selected_session = None
     
     for session in sessions:
-        if f"{session['name']} - {session['phone']}" == text:
+        # دعم كلا التنسيقين: القديم والجديد
+        if (f"{session['name']} - {session['phone']}" == text or 
+            f"{session['id']}. {session['name']} - {session['phone']}" == text or
+            text.startswith(f"{session['id']}.")):  # دعم الاختيار بالرقم فقط
             selected_session = session
             break
     
@@ -485,31 +488,76 @@ async def create_task_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data['task_command'] = update.message.text.strip()
     
     await update.message.reply_text(
-        "📄 الآن أرسل ملف البطاقات (txt):\n\n"
-        "كل سطر يحتوي على بطاقة بالصيغة:\n"
-        "4519912222608202|08|2029|649"
+        "📄 الآن أرسل ملف البطاقات (.txt) أو البطاقات مباشرة:\n\n"
+        "📝 التنسيق المطلوب (كل سطر = بطاقة):\n"
+        "4519912222608202|08|2029|649\n"
+        "1234567890123456|12|2025|123\n\n"
+        "✅ يمكنك إرسال ملف .txt أو نسخ ولصق البطاقات مباشرة!"
     )
     
     return CREATE_TASK_FILE
 
 async def create_task_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """استقبال ملف البطاقات"""
-    if not update.message.document:
-        await update.message.reply_text("❌ يرجى إرسال ملف نصي.")
+    """استقبال ملف البطاقات أو رسالة نصية"""
+    
+    # حالة 1: رسالة نصية (بطاقات مباشرة)
+    if update.message.text:
+        text = update.message.text.strip()
+        
+        # التحقق من أن الرسالة تحتوي على بطاقات
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        
+        # التحقق من أن السطر الأول يحتوي على بطاقة
+        if lines and '|' in lines[0]:
+            # حفظ البطاقات في ملف
+            filename = f"cards_{update.effective_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            filepath = card_manager.save_cards_file(text, filename)
+            
+            # عد البطاقات
+            cards_count = card_manager.count_cards(filepath)
+            
+            context.user_data['task_file'] = filepath
+            
+            await update.message.reply_text(
+                f"✅ تم استقبال البطاقات بنجاح!\n"
+                f"📊 عدد البطاقات: {cards_count}\n\n"
+                f"⏱️ أدخل الفاصل الزمني بالثواني:\n"
+                f"مثال: 6"
+            )
+            
+            return CREATE_TASK_INTERVAL
+        else:
+            await update.message.reply_text(
+                "❌ الرسالة لا تحتوي على بطاقات صحيحة!\n\n"
+                "📝 التنسيق المطلوب:\n"
+                "1234567890123456|12|2025|123\n"
+                "9876543210987654|11|2026|456\n\n"
+                "أو أرسل ملف .txt"
+            )
+            return CREATE_TASK_FILE
+    
+    # حالة 2: ملف نصي
+    elif update.message.document:
+        # تحميل الملف
+        file = await update.message.document.get_file()
+        file_content = await file.download_as_bytearray()
+        
+        # حفظ الملف
+        filename = f"cards_{update.effective_user.id}_{update.message.document.file_name}"
+        filepath = card_manager.save_cards_file(file_content.decode('utf-8'), filename)
+        
+        # عد البطاقات
+        cards_count = card_manager.count_cards(filepath)
+        
+        context.user_data['task_file'] = filepath
+    else:
+        await update.message.reply_text(
+            "❌ يرجى إرسال ملف نصي أو رسالة تحتوي على البطاقات.\n\n"
+            "📝 مثال على رسالة نصية:\n"
+            "1234567890123456|12|2025|123\n"
+            "9876543210987654|11|2026|456"
+        )
         return CREATE_TASK_FILE
-    
-    # تحميل الملف
-    file = await update.message.document.get_file()
-    file_content = await file.download_as_bytearray()
-    
-    # حفظ الملف
-    filename = f"cards_{update.effective_user.id}_{update.message.document.file_name}"
-    filepath = card_manager.save_cards_file(file_content.decode('utf-8'), filename)
-    
-    # عد البطاقات
-    cards_count = card_manager.count_cards(filepath)
-    
-    context.user_data['task_file'] = filepath
     
     await update.message.reply_text(
         f"✅ تم رفع الملف بنجاح!\n"
@@ -800,7 +848,7 @@ def main():
             CREATE_TASK_SESSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_session)],
             CREATE_TASK_BOT: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_bot)],
             CREATE_TASK_COMMAND: [MessageHandler(filters.TEXT, create_task_command)],
-            CREATE_TASK_FILE: [MessageHandler(filters.Document.ALL, create_task_file)],
+            CREATE_TASK_FILE: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, create_task_file)],
             CREATE_TASK_INTERVAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_interval)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
