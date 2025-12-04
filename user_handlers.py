@@ -72,13 +72,17 @@ async def handle_check_cards(update: Update, context: ContextTypes.DEFAULT_TYPE,
     
     # ✅ دالة callback لإرسال البطاقات الناجحة فوراً
     async def on_approved_card(result):
-        # إرسال للمستخدم
-        result_text = card_checker.format_result(result)
-        await update.message.reply_text(result_text, parse_mode='Markdown')
-        
-        # إشعار المدير
-        if notifier:
-            await notifier.notify_approved_card(user, result)
+        try:
+            # إرسال للمستخدم
+            result_text = card_checker.format_result(result)
+            await update.message.reply_text(result_text, parse_mode='Markdown')
+            
+            # إشعار المدير
+            if notifier:
+                await notifier.notify_approved_card(user, result)
+        except Exception as e:
+            # ✅ معالجة الأخطاء لعدم توقف الفحص
+            logger.error(f"خطأ في إرسال بطاقة ناجحة: {e}")
     
     # فحص البطاقات مع callback
     results = await card_checker.check_cards_batch(
