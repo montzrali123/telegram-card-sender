@@ -2,6 +2,7 @@
 نظام إدارة جلسات Telegram
 """
 import asyncio
+import time
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 from telethon.errors import SessionPasswordNeededError, PhoneCodeInvalidError
@@ -14,6 +15,8 @@ class SessionManager:
     def __init__(self):
         self.active_clients: Dict[int, TelegramClient] = {}
         self.temp_clients: Dict[str, TelegramClient] = {}  # للاحتفاظ بالـ clients المؤقتة
+        self.session_locks: Dict[int, asyncio.Lock] = {}  # ✅ إضافة: locks لكل جلسة
+        self.last_used: Dict[int, float] = {}  # ✅ إضافة: آخر استخدام لكل جلسة
     
     async def create_session(self, phone: str, api_id: str, api_hash: str) -> Dict[str, str]:
         """
@@ -195,6 +198,7 @@ class SessionManager:
                 return False
             
             self.active_clients[session_id] = client
+            self.update_last_used(session_id)  # ✅ تحديث وقت الاستخدام
             logger.info(f"تم تحميل الجلسة {session_id} بنجاح")
             return True
         
@@ -254,3 +258,30 @@ class SessionManager:
     def is_session_loaded(self, session_id: int) -> bool:
         """التحقق من تحميل الجلسة"""
         return session_id in self.active_clients
+    
+    async def get_lock(self, session_id: int) -> asyncio.Lock:
+        """✅ الحصول على lock للجلسة (لحماية من Race Conditions)"""
+        if session_id not in self.session_locks:
+            self.session_locks[session_id] = asyncio.Lock()
+        return self.session_locks[session_id]
+    
+    def update_last_used(self, session_id: int):
+        """✅ تحديث وقت آخر استخدام للجلسة"""
+        self.last_used[session_id] = time.time()
+    
+    async def cleanup_inactive_sessions(self, timeout: int = 3600):
+        """✅ إغلاق الجلسات غير المستخدمة لأكثر من timeout ثانية"""
+        current_time = time.time()
+        sessions_to_unload = []
+        
+        for session_id, last_used_time in self.last_used.items():
+            if current_time - last_used_time > timeout:
+                sessions_to_unload.append(session_id)
+        
+        for session_id in sessions_to_unload:
+            logger.info(f"✅ إغلاق جلسة غير مستخدمة: {session_id}")
+            await self.unload_session(session_id)
+            if session_id in self.last_used:
+                del self.last_used[session_id]
+            if session_id in self.session_locks:
+                del self.session_locks[session_id]

@@ -978,6 +978,27 @@ def main():
     app.add_handler(CallbackQueryHandler(button_callback))
     app.add_handler(conv_handler)
     
+    # ✅ إضافة: Shutdown handler
+    async def shutdown(application):
+        logger.info("✅ إيقاف البوت...")
+        await session_manager.unload_all_sessions()
+        logger.info("✅ تم إغلاق جميع الجلسات")
+    
+    app.post_shutdown = shutdown
+    
+    # ✅ إضافة: Cleanup task (تنظيف الجلسات غير المستخدمة كل ساعة)
+    async def cleanup_task():
+        while True:
+            try:
+                await asyncio.sleep(3600)  # كل ساعة
+                logger.info("✅ بدء تنظيف الجلسات غير المستخدمة...")
+                await session_manager.cleanup_inactive_sessions(timeout=3600)
+            except Exception as e:
+                logger.error(f"❌ خطأ في cleanup_task: {e}")
+    
+    # بدء cleanup task في الخلفية
+    asyncio.create_task(cleanup_task())
+    
     logger.info("🚀 البوت يعمل الآن...")
     app.run_polling()
 
