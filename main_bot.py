@@ -938,7 +938,8 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, user_session_handler.user_add_session_phone)
             ],
             user_session_handler.USER_ADD_SESSION_API: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, user_session_handler.user_add_session_api)
+                MessageHandler(filters.TEXT & ~filters.COMMAND, 
+                             lambda u, c: user_session_handler.user_add_session_api(u, c, session_manager))
             ],
             user_session_handler.USER_ADD_SESSION_CODE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, 

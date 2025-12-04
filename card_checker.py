@@ -167,7 +167,7 @@ class CardChecker:
         return info
     
     async def check_cards_batch(self, cards: List[Dict[str, str]], checker_bot: str, 
-                                session_id: int, delay: int = 6) -> List[Dict[str, any]]:
+                                session_id: int, delay: int = 13) -> List[Dict[str, any]]:
         """فحص مجموعة بطاقات"""
         results = []
         

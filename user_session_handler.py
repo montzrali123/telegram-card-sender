@@ -56,7 +56,7 @@ async def user_add_session_phone(update: Update, context: ContextTypes.DEFAULT_T
     
     return USER_ADD_SESSION_API
 
-async def user_add_session_api(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def user_add_session_api(update: Update, context: ContextTypes.DEFAULT_TYPE, session_manager) -> int:
     """استلام API ID و API Hash"""
     text = update.message.text.strip()
     
@@ -82,9 +82,7 @@ async def user_add_session_api(update: Update, context: ContextTypes.DEFAULT_TYP
     # إذا كان API Hash
     context.user_data['user_session_api_hash'] = text
     
-    # بدء عملية تسجيل الدخول
-    from session_manager import SessionManager
-    session_manager = SessionManager()
+    # ✅ إصلاح: استخدام session_manager المُمرر بدلاً من إنشاء واحد جديد
     
     phone = context.user_data['user_session_phone']
     api_id = context.user_data['user_session_api_id']
