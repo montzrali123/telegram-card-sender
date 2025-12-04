@@ -93,7 +93,9 @@ class CardChecker:
             async with lock:
                 # إرسال للبوت المستهدف
                 try:
-                    await client.send_message(checker_bot, card_text)
+                    # ✅ إضافة: إرسال أمر الفحص قبل البطاقة
+                    message_to_send = f"/chk {card_text}"
+                    await client.send_message(checker_bot, message_to_send)
                 except ValueError as e:
                     # ✅ معالجة خاصة: البوت غير صحيح
                     logger.error(f"البوت غير صحيح: {checker_bot}")
