@@ -19,6 +19,9 @@ from telegram.ext import (
 from database import Database
 from session_manager import SessionManager
 from task_manager import CardFileManager, TaskRunner
+from card_checker import CardChecker
+from notifier import Notifier
+import admin_commands
 
 # إعداد السجلات
 logging.basicConfig(
@@ -37,6 +40,8 @@ db = Database()
 session_manager = SessionManager()
 card_manager = CardFileManager()
 task_runner = TaskRunner(db, session_manager, card_manager)
+card_checker = CardChecker(db, session_manager)
+notifier = None  # سيتم تهيئته في main()
 
 # معرف المالك
 OWNER_ID = int(os.getenv("OWNER_ID", "0"))
@@ -51,40 +56,107 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """بدء البوت"""
     user_id = update.effective_user.id
     
-    if not is_owner(user_id):
-        await update.message.reply_text("⛔ عذراً، هذا البوت خاص.")
-        return ConversationHandler.END
-    
-    keyboard = [
-        ["👥 إدارة الجلسات", "📋 إدارة المهام"],
-        ["📊 الإحصائيات", "ℹ️ المساعدة"],
-    ]
-    
-    await update.message.reply_text(
-        f"🎉 مرحباً {update.effective_user.first_name}!\n\n"
-        "🤖 بوت إرسال البطاقات الاحترافي\n\n"
-        "✅ البوت جاهز للعمل!\n"
-        "📱 اختر من القائمة:",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    )
+    # التحقق من المستخدم
+    if is_owner(user_id):
+        # المدير
+        keyboard = [
+            ["👥 إدارة الجلسات", "📋 إدارة المهام"],
+            ["👥 إدارة المستخدمين", "📊 الإحصائيات"],
+            ["ℹ️ المساعدة"],
+        ]
+        
+        await update.message.reply_text(
+            f"🎉 مرحباً {update.effective_user.first_name}!\n\n"
+            "🔑 لوحة التحكم - المدير\n\n"
+            "✅ البوت جاهز للعمل!\n"
+            "📱 اختر من القائمة:",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        )
+    else:
+        # مستخدم عادي
+        user = db.get_user(user_id)
+        
+        if not user:
+            await update.message.reply_text(
+                "⛔ عذراً، لست مسجلاً في النظام!\n\n"
+                "📞 اتصل بالمدير للتسجيل."
+            )
+            return ConversationHandler.END
+        
+        if not user['is_active']:
+            await update.message.reply_text(
+                "⛔ حسابك معطّل!\n\n"
+                "📞 اتصل بالمدير."
+            )
+            return ConversationHandler.END
+        
+        keyboard = [
+            ["💳 فحص بطاقة"],
+            ["📊 إحصائياتي", "ℹ️ مساعدة"],
+        ]
+        
+        session_status = "✅ جلسة مضافة" if user['session_id'] else "⚠️ لم تضف جلسة"
+        
+        await update.message.reply_text(
+            f"👋 مرحباً {update.effective_user.first_name}!\n\n"
+            f"🤖 بوت: {user['checker_bot']}\n"
+            f"{session_status}\n\n"
+            "💳 أرسل بطاقة أو كومبو للفحص!",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        )
     
     return MAIN_MENU
 
 async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """معالج القائمة الرئيسية"""
     text = update.message.text
+    user_id = update.effective_user.id
     
+    # أزرار المدير
     if text == "👥 إدارة الجلسات":
         return await show_sessions_menu(update, context)
     elif text == "📋 إدارة المهام":
         return await show_tasks_menu(update, context)
+    elif text == "👥 إدارة المستخدمين":
+        await update.message.reply_text(
+            "👥 **إدارة المستخدمين**\n\n"
+            "استخدم الأوامر التالية:\n\n"
+            "/adduser [telegram_id] [BotName]\n"
+            "/listusers\n"
+            "/removeuser [telegram_id]\n"
+            "/toggleuser [telegram_id]",
+            parse_mode='Markdown'
+        )
+        return MAIN_MENU
     elif text == "📊 الإحصائيات":
         return await show_stats(update, context)
     elif text == "ℹ️ المساعدة":
         return await show_help(update, context)
-    else:
-        await update.message.reply_text("اختر من القائمة من فضلك.")
+    # أزرار المستخدمين
+    elif text == "💳 فحص بطاقة":
+        await update.message.reply_text(
+            "💳 **فحص البطاقات**\n\n"
+            "أرسل بطاقة أو كومبو:\n\n"
+            "`4532015112830366|12|2027|123`\n\n"
+            "أو عدة بطاقات (كل بطاقة في سطر)",
+            parse_mode='Markdown'
+        )
         return MAIN_MENU
+    elif text == "📊 إحصائياتي":
+        from user_handlers import show_user_stats
+        await show_user_stats(update, context, db)
+        return MAIN_MENU
+    elif text == "ℹ️ مساعدة":
+        return await show_help(update, context)
+    else:
+        # إذا لم يكن زر، ربما بطاقات
+        if not is_owner(user_id):
+            from user_handlers import handle_check_cards
+            await handle_check_cards(update, context, db, card_checker, notifier)
+            return MAIN_MENU
+        else:
+            await update.message.reply_text("اختر من القائمة من فضلك.")
+            return MAIN_MENU
 
 # ============= إدارة الجلسات =============
 
@@ -837,6 +909,8 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def main():
     """تشغيل البوت"""
+    global notifier
+    
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     
     if not BOT_TOKEN:
@@ -844,6 +918,15 @@ def main():
         return
     
     app = Application.builder().token(BOT_TOKEN).build()
+    
+    # تهيئة notifier
+    notifier = Notifier(app.bot)
+    
+    # أوامر المدير
+    app.add_handler(CommandHandler("adduser", lambda u, c: admin_commands.cmd_adduser(u, c, db)))
+    app.add_handler(CommandHandler("listusers", lambda u, c: admin_commands.cmd_listusers(u, c, db)))
+    app.add_handler(CommandHandler("removeuser", lambda u, c: admin_commands.cmd_removeuser(u, c, db)))
+    app.add_handler(CommandHandler("toggleuser", lambda u, c: admin_commands.cmd_toggleuser(u, c, db)))
     
     # المحادثة الرئيسية
     conv_handler = ConversationHandler(

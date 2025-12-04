@@ -53,6 +53,22 @@ class Database:
     
     def create_tables(self):
         """إنشاء الجداول"""
+        # جدول المستخدمين
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER UNIQUE NOT NULL,
+                username TEXT,
+                checker_bot TEXT NOT NULL,
+                session_id INTEGER,
+                max_cards_per_check INTEGER DEFAULT 50,
+                delay_between_cards INTEGER DEFAULT 6,
+                is_active INTEGER DEFAULT 1,
+                added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                added_by INTEGER NOT NULL
+            )
+        """)
+        
         # جدول الجلسات
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS sessions (
@@ -393,6 +409,89 @@ class Database:
             })
         
         return logs
+    
+    # ========== إدارة المستخدمين ==========
+    
+    def add_user(self, telegram_id: int, username: str, checker_bot: str, added_by: int) -> bool:
+        """إضافة مستخدم جديد"""
+        try:
+            self.cursor.execute("""
+                INSERT INTO users (telegram_id, username, checker_bot, added_by)
+                VALUES (?, ?, ?, ?)
+            """, (telegram_id, username, checker_bot, added_by))
+            self.conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False  # المستخدم موجود مسبقاً
+    
+    def get_user(self, telegram_id: int) -> Optional[Dict[str, Any]]:
+        """الحصول على مستخدم"""
+        self.cursor.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
+        row = self.cursor.fetchone()
+        
+        if not row:
+            return None
+        
+        return {
+            'id': row['id'],
+            'telegram_id': row['telegram_id'],
+            'username': row['username'],
+            'checker_bot': row['checker_bot'],
+            'session_id': row['session_id'],
+            'max_cards_per_check': row['max_cards_per_check'],
+            'delay_between_cards': row['delay_between_cards'],
+            'is_active': bool(row['is_active']),
+            'added_at': row['added_at'],
+            'added_by': row['added_by']
+        }
+    
+    def get_all_users(self) -> List[Dict[str, Any]]:
+        """الحصول على جميع المستخدمين"""
+        self.cursor.execute("SELECT * FROM users ORDER BY added_at DESC")
+        rows = self.cursor.fetchall()
+        
+        users = []
+        for row in rows:
+            users.append({
+                'id': row['id'],
+                'telegram_id': row['telegram_id'],
+                'username': row['username'],
+                'checker_bot': row['checker_bot'],
+                'session_id': row['session_id'],
+                'max_cards_per_check': row['max_cards_per_check'],
+                'delay_between_cards': row['delay_between_cards'],
+                'is_active': bool(row['is_active']),
+                'added_at': row['added_at'],
+                'added_by': row['added_by']
+            })
+        
+        return users
+    
+    def remove_user(self, telegram_id: int) -> bool:
+        """حذف مستخدم"""
+        self.cursor.execute("DELETE FROM users WHERE telegram_id = ?", (telegram_id,))
+        self.conn.commit()
+        return self.cursor.rowcount > 0
+    
+    def toggle_user(self, telegram_id: int) -> bool:
+        """تفعيل/تعطيل مستخدم"""
+        self.cursor.execute("""
+            UPDATE users 
+            SET is_active = NOT is_active 
+            WHERE telegram_id = ?
+        """, (telegram_id,))
+        self.conn.commit()
+        return self.cursor.rowcount > 0
+    
+    def update_user_session(self, telegram_id: int, session_id: int) -> bool:
+        """تحديث جلسة المستخدم"""
+        self.cursor.execute("""
+            UPDATE users 
+            SET session_id = ? 
+            WHERE telegram_id = ?
+        """, (session_id, telegram_id))
+        self.conn.commit()
+        return self.cursor.rowcount > 0
     
     def close(self):
         """إغلاق الاتصال بقاعدة البيانات"""
