@@ -38,14 +38,23 @@ class Notifier:
                 text += f"👤 المستخدم: {telegram_id}\n"
             
             # معلومات البطاقة
-            text += f"💳 البطاقة: `{card_text}`\n"
+            text += f"💳 البطاقة: `{card_text}`\n\n"
             
+            # معلومات مفصلة
             if 'bank' in info:
                 text += f"🏦 البنك: {info['bank']}\n"
             if 'country' in info:
                 text += f"🌍 الدولة: {info['country']}\n"
             if 'gateway' in info:
                 text += f"🔗 Gateway: {info['gateway']}\n"
+            if 'category' in info:
+                text += f"🏷️ الفئة: {info['category']}\n"
+            if 'type' in info:
+                text += f"💳 النوع: {info['type']}\n"
+            if 'response_text' in info:
+                text += f"📝 الرد: {info['response_text']}\n"
+            
+            text += "\n"
             
             # معلومات إضافية
             text += f"🤖 البوت: {user_info.get('checker_bot', 'غير محدد')}\n"
@@ -83,6 +92,21 @@ class Notifier:
         gateway_match = re.search(r'Gateway[:\s]+([^\n]+)', response, re.IGNORECASE)
         if gateway_match:
             info['gateway'] = gateway_match.group(1).strip()
+        
+        # استخراج الفئة
+        category_match = re.search(r'Category[:\s]+([^\n]+)', response, re.IGNORECASE)
+        if category_match:
+            info['category'] = category_match.group(1).strip()
+        
+        # استخراج النوع
+        type_match = re.search(r'Type[:\s]+([^\n]+)', response, re.IGNORECASE)
+        if type_match:
+            info['type'] = type_match.group(1).strip()
+        
+        # استخراج الرد
+        response_match = re.search(r'Response[:\s]+([^\n]+)', response, re.IGNORECASE)
+        if response_match:
+            info['response_text'] = response_match.group(1).strip()
         
         return info
     
