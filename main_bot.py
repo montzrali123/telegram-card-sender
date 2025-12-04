@@ -944,9 +944,9 @@ def main():
         if not existing_owner:
             db.add_user(
                 telegram_id=owner_id,
-                checker_bot='@KillerPayuBot',  # بوت افتراضي
-                max_cards_per_check=800,
-                delay_between_cards=13
+                username='',  # سيتم تحديثه عند أول رسالة
+                checker_bot='@KillerPayuBot',
+                added_by=owner_id  # المدير أضاف نفسه
             )
             logger.info(f"✅ تم إضافة المدير {owner_id} كمستخدم")
     
