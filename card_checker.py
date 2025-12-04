@@ -90,12 +90,19 @@ class CardChecker:
             
             # ✅ إضافة: استخدام lock لحماية من Race Conditions
             lock = await self.session_manager.get_lock(session_id)
+            
+            # ✅ حفظ وقت الإرسال
+            import time
+            send_time = time.time()
+            
+            # إرسال للبوت المستهدف (داخل lock)
             async with lock:
-                # إرسال للبوت المستهدف
                 try:
                     # ✅ إضافة: إرسال أمر الفحص قبل البطاقة
                     message_to_send = f"/chk {card_text}"
                     await client.send_message(checker_bot, message_to_send)
+                    # ✅ تحديث وقت الاستخدام
+                    self.session_manager.update_last_used(session_id)
                 except ValueError as e:
                     # ✅ معالجة خاصة: البوت غير صحيح
                     logger.error(f"البوت غير صحيح: {checker_bot}")
@@ -114,17 +121,12 @@ class CardChecker:
                         'status': 'error',
                         'response': f'فشل إرسال الرسالة: {str(e)}'
                     }
-                
-                # ✅ تحديث وقت الاستخدام
-                self.session_manager.update_last_used(session_id)
-                
-                # ✅ حفظ وقت الإرسال
-                import time
-                send_time = time.time()
-                
-                # ✅ تحسين: وقت انتظار 13 ثانية (كما حدده المستخدم)
-                await asyncio.sleep(13)
-                
+            
+            # ✅ الانتظار (خارج lock) - للسماح لمستخدمين آخرين بالاستخدام
+            await asyncio.sleep(13)
+            
+            # الحصول على الرد (داخل lock)
+            async with lock:
                 # ✅ الحصول على عدة رسائل للتأكد
                 messages = await client.get_messages(checker_bot, limit=5)
                 
