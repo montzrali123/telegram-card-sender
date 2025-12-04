@@ -32,7 +32,17 @@ async def handle_check_cards(update: Update, context: ContextTypes.DEFAULT_TYPE,
         return
     
     # استخراج البطاقات
-    text = update.message.text
+    text = ""
+    
+    # إذا كان ملف
+    if update.message.document:
+        file = await update.message.document.get_file()
+        file_content = await file.download_as_bytearray()
+        text = file_content.decode('utf-8', errors='ignore')
+    # إذا كان نص
+    elif update.message.text:
+        text = update.message.text
+    
     cards = card_checker.parse_cards(text)
     
     if not cards:

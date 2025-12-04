@@ -112,8 +112,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """معالج القائمة الرئيسية"""
-    text = update.message.text
     user_id = update.effective_user.id
+    
+    # إذا كان ملف أو ليس نصاً
+    if update.message.document or not update.message.text:
+        # معالجة البطاقات (ملف أو نص)
+        if not is_owner(user_id):
+            from user_handlers import handle_check_cards
+            await handle_check_cards(update, context, db, card_checker, notifier)
+            return MAIN_MENU
+        else:
+            await update.message.reply_text("اختر من القائمة من فضلك.")
+            return MAIN_MENU
+    
+    text = update.message.text
     
     # أزرار المدير
     if text == "👥 إدارة الجلسات":
@@ -959,7 +971,10 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            MAIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_handler)],
+            MAIN_MENU: [
+                MessageHandler(filters.Document.ALL, main_menu_handler),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_handler)
+            ],
             SESSION_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, session_menu_handler)],
             ADD_SESSION_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_session_phone)],
             ADD_SESSION_CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_session_api_data)],
