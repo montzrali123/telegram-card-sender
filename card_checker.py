@@ -115,11 +115,33 @@ class CardChecker:
                 # ✅ تحديث وقت الاستخدام
                 self.session_manager.update_last_used(session_id)
                 
+                # ✅ حفظ وقت الإرسال
+                import time
+                send_time = time.time()
+                
                 # ✅ تحسين: وقت انتظار 13 ثانية (كما حدده المستخدم)
                 await asyncio.sleep(13)
                 
-                # الحصول على آخر رسالة من البوت
-                messages = await client.get_messages(checker_bot, limit=1)
+                # ✅ الحصول على عدة رسائل للتأكد
+                messages = await client.get_messages(checker_bot, limit=5)
+                
+                # ✅ البحث عن الرسالة الصحيحة (بعد وقت الإرسال)
+                response_text = None
+                my_id = (await client.get_me()).id
+                
+                for msg in messages:
+                    # التحقق من أن الرسالة بعد وقت الإرسال
+                    if msg.date.timestamp() > send_time:
+                        # التحقق من أن الرسالة من البوت (وليس منا)
+                        if msg.sender_id != my_id:
+                            response_text = msg.text
+                            break
+                
+                # إذا لم نجد رسالة صحيحة، استخدم الأحدث
+                if not response_text and messages:
+                    response_text = messages[0].text
+                
+                messages = [type('obj', (object,), {'text': response_text})()] if response_text else []
             
             if not messages:
                 return {
@@ -159,19 +181,21 @@ class CardChecker:
         """تحليل رد البوت لتحديد النتيجة"""
         response_lower = response.lower()
         
-        # كلمات النجاح
-        success_keywords = ['approved', 'success', 'charged', 'نجح', 'live']
+        # ✅ كلمات الفشل (تُفحص أولاً - أكثر أهمية!)
+        failure_keywords = ['declined', 'failed', 'error', 'insufficient', 'فشل', 'dead', 'invalid']
         
-        # كلمات الفشل
-        failure_keywords = ['declined', 'failed', 'error', 'insufficient', 'فشل', 'dead']
+        # ✅ كلمات النجاح (بدون 'live' - غامضة)
+        success_keywords = ['approved', 'success', 'charged', 'نجح', 'authenticated']
         
-        for keyword in success_keywords:
-            if keyword in response_lower:
-                return 'approved'
-        
+        # ✅ فحص الفشل أولاً!
         for keyword in failure_keywords:
             if keyword in response_lower:
                 return 'declined'
+        
+        # ✅ ثم فحص النجاح
+        for keyword in success_keywords:
+            if keyword in response_lower:
+                return 'approved'
         
         return 'unknown'
     
@@ -212,9 +236,8 @@ class CardChecker:
             result = await self.check_card(card, checker_bot, session_id)
             results.append(result)
             
-            # تأخير بين البطاقات (إلا الأخيرة)
-            if i < len(cards):
-                await asyncio.sleep(delay)
+            # ✅ إزالة الانتظار المضاعف - الانتظار موجود بالفعل في check_card
+            # لا حاجة للانتظار هنا
         
         return results
     
