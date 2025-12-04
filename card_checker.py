@@ -231,8 +231,13 @@ class CardChecker:
         return info
     
     async def check_cards_batch(self, cards: List[Dict[str, str]], checker_bot: str, 
-                                session_id: int, delay: int = 13) -> List[Dict[str, any]]:
-        """فحص مجموعة بطاقات"""
+                                session_id: int, delay: int = 13, 
+                                on_result_callback=None) -> List[Dict[str, any]]:
+        """فحص مجموعة بطاقات
+        
+        Args:
+            on_result_callback: دالة يتم استدعاؤها فوراً عند نجاح أي بطاقة
+        """
         results = []
         
         for i, card in enumerate(cards, 1):
@@ -240,6 +245,10 @@ class CardChecker:
             
             result = await self.check_card(card, checker_bot, session_id)
             results.append(result)
+            
+            # ✅ إرسال فوري عند النجاح
+            if on_result_callback and result['status'] == 'approved':
+                await on_result_callback(result)
             
             # ✅ إزالة الانتظار المضاعف - الانتظار موجود بالفعل في check_card
             # لا حاجة للانتظار هنا

@@ -70,24 +70,31 @@ async def handle_check_cards(update: Update, context: ContextTypes.DEFAULT_TYPE,
         f"🤖 البوت: {user['checker_bot']}"
     )
     
-    # فحص البطاقات
+    # ✅ دالة callback لإرسال البطاقات الناجحة فوراً
+    async def on_approved_card(result):
+        # إرسال للمستخدم
+        result_text = card_checker.format_result(result)
+        await update.message.reply_text(result_text, parse_mode='Markdown')
+        
+        # إشعار المدير
+        if notifier:
+            await notifier.notify_approved_card(user, result)
+    
+    # فحص البطاقات مع callback
     results = await card_checker.check_cards_batch(
         cards,
         user['checker_bot'],
         user['session_id'],
-        user['delay_between_cards']
+        user['delay_between_cards'],
+        on_result_callback=on_approved_card  # ✅ إرسال فوري
     )
     
-    # إرسال النتائج
+    # إرسال النتائج المتبقية (الفاشلة وغير المحددة)
     for i, result in enumerate(results, 1):
-        result_text = card_checker.format_result(result)
-        await update.message.reply_text(result_text, parse_mode='Markdown')
-        
-        # إشعار المدير عند النجاح
-        if result['status'] == 'approved':
-            # ✅ إصلاح: التحقق من وجود notifier
-            if notifier:
-                await notifier.notify_approved_card(user, result)
+        # تخطي الناجحة (تم إرسالها فوراً)
+        if result['status'] != 'approved':
+            result_text = card_checker.format_result(result)
+            await update.message.reply_text(result_text, parse_mode='Markdown')
     
     # إرسال الملخص
     summary = card_checker.format_summary(results)
