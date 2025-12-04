@@ -61,8 +61,8 @@ class Database:
                 username TEXT,
                 checker_bot TEXT NOT NULL,
                 session_id INTEGER,
-                max_cards_per_check INTEGER DEFAULT 50,
-                delay_between_cards INTEGER DEFAULT 6,
+                max_cards_per_check INTEGER DEFAULT 800,
+                delay_between_cards INTEGER DEFAULT 13,
                 is_active INTEGER DEFAULT 1,
                 added_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 added_by INTEGER NOT NULL

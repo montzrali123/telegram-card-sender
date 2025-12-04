@@ -22,6 +22,7 @@ from task_manager import CardFileManager, TaskRunner
 from card_checker import CardChecker
 from notifier import Notifier
 import admin_commands
+import user_session_handler
 
 # إعداد السجلات
 logging.basicConfig(
@@ -79,14 +80,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         if not user:
             await update.message.reply_text(
                 "⛔ عذراً، لست مسجلاً في النظام!\n\n"
-                "📞 اتصل بالمدير للتسجيل."
+                "📞 اتصل بالمدير للتسجيل: @tkttx"
             )
             return ConversationHandler.END
         
         if not user['is_active']:
             await update.message.reply_text(
                 "⛔ حسابك معطّل!\n\n"
-                "📞 اتصل بالمدير."
+                "📞 اتصل بالمدير: @tkttx"
             )
             return ConversationHandler.END
         
@@ -887,7 +888,7 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 • اضغط تشغيل
 • راقب الإحصائيات
 
-**للدعم:** @YourSupport
+**للدعم:** @tkttx
     """
     
     await update.message.reply_text(text)
@@ -927,6 +928,29 @@ def main():
     app.add_handler(CommandHandler("listusers", lambda u, c: admin_commands.cmd_listusers(u, c, db)))
     app.add_handler(CommandHandler("removeuser", lambda u, c: admin_commands.cmd_removeuser(u, c, db)))
     app.add_handler(CommandHandler("toggleuser", lambda u, c: admin_commands.cmd_toggleuser(u, c, db)))
+    
+    # ConversationHandler لإضافة الجلسات للمستخدمين
+    user_session_conv = ConversationHandler(
+        entry_points=[CommandHandler("addsession", lambda u, c: user_session_handler.cmd_addsession_user(u, c, db))],
+        states={
+            user_session_handler.USER_ADD_SESSION_PHONE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, user_session_handler.user_add_session_phone)
+            ],
+            user_session_handler.USER_ADD_SESSION_API: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, user_session_handler.user_add_session_api)
+            ],
+            user_session_handler.USER_ADD_SESSION_CODE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, 
+                             lambda u, c: user_session_handler.user_add_session_code(u, c, db, session_manager))
+            ],
+            user_session_handler.USER_ADD_SESSION_PASSWORD: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, 
+                             lambda u, c: user_session_handler.user_add_session_password(u, c, db, session_manager))
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", user_session_handler.cancel_user_session)],
+    )
+    app.add_handler(user_session_conv)
     
     # المحادثة الرئيسية
     conv_handler = ConversationHandler(
