@@ -23,6 +23,7 @@ from card_checker import CardChecker
 from notifier import Notifier
 import admin_commands
 import user_session_handler
+import user_handlers
 
 # إعداد السجلات
 logging.basicConfig(

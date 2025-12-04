@@ -52,21 +52,30 @@ class SessionManager:
         try:
             # استخدام الـ client المحفوظ
             if phone not in self.temp_clients:
+                logger.error(f"Client not found for phone: {phone}")
                 return {
                     'status': 'error',
-                    'message': 'الجلسة منتهية. ابدأ من جديد بـ /start'
+                    'message': 'الجلسة منتهية. ابدأ من جديد بـ /addsession'
                 }
             
             client = self.temp_clients[phone]
             
             try:
                 # تسجيل الدخول بالكود
+                logger.info(f"Attempting sign_in for {phone}")
                 await client.sign_in(phone, code, phone_code_hash=phone_code_hash)
+                logger.info(f"Sign_in successful for {phone}")
+                
             except SessionPasswordNeededError:
+                logger.info(f"Password required for {phone}")
                 if password:
+                    # تسجيل الدخول بكلمة المرور
+                    logger.info(f"Attempting sign_in with password for {phone}")
                     await client.sign_in(password=password)
+                    logger.info(f"Sign_in with password successful for {phone}")
                 else:
-                    # لا تحذف الـ client - سنحتاجه لكلمة المرور
+                    # كلمة المرور مطلوبة - لا تحذف الـ client
+                    logger.info(f"Returning password_required for {phone}")
                     return {
                         'status': 'password_required',
                         'message': 'الحساب محمي بكلمة مرور. أدخل كلمة المرور.'
@@ -74,15 +83,20 @@ class SessionManager:
             
             # الحصول على session string
             session_string = client.session.save()
+            logger.info(f"Session string obtained for {phone}")
             
             # الحصول على معلومات المستخدم
             me = await client.get_me()
+            logger.info(f"User info obtained: {me.first_name}")
             
+            # قطع الاتصال
             await client.disconnect()
+            logger.info(f"Client disconnected for {phone}")
             
-            # حذف الـ client المؤقت
+            # حذف الـ client المؤقت (فقط بعد النجاح الكامل)
             if phone in self.temp_clients:
                 del self.temp_clients[phone]
+                logger.info(f"Temp client deleted for {phone}")
             
             return {
                 'status': 'success',
@@ -93,12 +107,13 @@ class SessionManager:
             }
         
         except PhoneCodeInvalidError:
+            logger.error(f"Invalid phone code for {phone}")
             return {
                 'status': 'error',
                 'message': 'كود التحقق غير صحيح. حاول مرة أخرى.'
             }
         except Exception as e:
-            logger.error(f"خطأ في التحقق من الكود: {e}")
+            logger.error(f"خطأ في التحقق من الكود: {e}", exc_info=True)
             return {
                 'status': 'error',
                 'message': f'خطأ: {str(e)}'
