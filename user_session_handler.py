@@ -193,12 +193,10 @@ async def user_add_session_password(update: Update, context: ContextTypes.DEFAUL
     phone = context.user_data['user_session_phone']
     api_id = context.user_data['user_session_api_id']
     api_hash = context.user_data['user_session_api_hash']
-    phone_code_hash = context.user_data['phone_code_hash']
-    code = context.user_data.get('code', '')
     
     try:
-        # التحقق مع كلمة المرور
-        result = await session_manager.verify_code(phone, code, phone_code_hash, api_id, api_hash, password)
+        # التحقق من كلمة المرور فقط
+        result = await session_manager.verify_password(phone, password)
         
         if result['status'] != 'success':
             await update.message.reply_text(

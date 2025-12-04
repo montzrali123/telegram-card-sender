@@ -119,6 +119,66 @@ class SessionManager:
                 'message': f'خطأ: {str(e)}'
             }
     
+    async def verify_password(self, phone: str, password: str) -> Dict[str, str]:
+        """
+        التحقق من كلمة المرور بعد طلبها
+        """
+        try:
+            # استخدام الـ client المحفوظ
+            if phone not in self.temp_clients:
+                logger.error(f"Client not found for phone: {phone}")
+                return {
+                    'status': 'error',
+                    'message': 'الجلسة منتهية. ابدأ من جديد بـ /addsession'
+                }
+            
+            client = self.temp_clients[phone]
+            logger.info(f"Attempting sign_in with password for {phone}")
+            
+            try:
+                # تسجيل الدخول بكلمة المرور
+                await client.sign_in(password=password)
+                logger.info(f"Sign_in with password successful for {phone}")
+                
+            except Exception as e:
+                logger.error(f"Password sign_in failed: {e}")
+                return {
+                    'status': 'error',
+                    'message': f'كلمة المرور غير صحيحة. حاول مرة أخرى.'
+                }
+            
+            # الحصول على session string
+            session_string = client.session.save()
+            logger.info(f"Session string obtained for {phone}")
+            
+            # الحصول على معلومات المستخدم
+            me = await client.get_me()
+            logger.info(f"User info obtained: {me.first_name}")
+            
+            # قطع الاتصال
+            await client.disconnect()
+            logger.info(f"Client disconnected for {phone}")
+            
+            # حذف الـ client المؤقت
+            if phone in self.temp_clients:
+                del self.temp_clients[phone]
+                logger.info(f"Temp client deleted for {phone}")
+            
+            return {
+                'status': 'success',
+                'message': f'تم تسجيل الدخول بنجاح كـ {me.first_name}',
+                'session_string': session_string,
+                'user_id': me.id,
+                'username': me.username or 'بدون معرّف'
+            }
+            
+        except Exception as e:
+            logger.error(f"خطأ في التحقق من كلمة المرور: {e}", exc_info=True)
+            return {
+                'status': 'error',
+                'message': f'خطأ: {str(e)}'
+            }
+    
     async def load_session(self, session_id: int, api_id: str, api_hash: str, 
                           session_string: str) -> bool:
         """تحميل جلسة موجودة"""
