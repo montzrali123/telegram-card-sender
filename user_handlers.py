@@ -75,7 +75,9 @@ async def handle_check_cards(update: Update, context: ContextTypes.DEFAULT_TYPE,
         
         # إشعار المدير عند النجاح
         if result['status'] == 'approved':
-            await notifier.notify_approved_card(user, result)
+            # ✅ إصلاح: التحقق من وجود notifier
+            if notifier:
+                await notifier.notify_approved_card(user, result)
     
     # إرسال الملخص
     summary = card_checker.format_summary(results)

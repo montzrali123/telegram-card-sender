@@ -164,6 +164,15 @@ async def user_add_session_code(update: Update, context: ContextTypes.DEFAULT_TY
             session_string=session_string
         )
         
+        # ✅ إصلاح: التحقق من نجاح حفظ الجلسة
+        if not session_id:
+            await update.message.reply_text(
+                "❌ خطأ في حفظ الجلسة!\n\n"
+                "جرّب مرة أخرى: /addsession"
+            )
+            context.user_data.clear()
+            return ConversationHandler.END
+        
         # ربط الجلسة بالمستخدم
         db.update_user_session(update.effective_user.id, session_id)
         
@@ -216,6 +225,15 @@ async def user_add_session_password(update: Update, context: ContextTypes.DEFAUL
             api_hash=api_hash,
             session_string=session_string
         )
+        
+        # ✅ إصلاح: التحقق من نجاح حفظ الجلسة
+        if not session_id:
+            await update.message.reply_text(
+                "❌ خطأ في حفظ الجلسة!\n\n"
+                "جرّب مرة أخرى: /addsession"
+            )
+            context.user_data.clear()
+            return ConversationHandler.END
         
         # ربط الجلسة بالمستخدم
         db.update_user_session(update.effective_user.id, session_id)
