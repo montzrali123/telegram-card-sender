@@ -997,8 +997,11 @@ def main():
             except Exception as e:
                 logger.error(f"❌ خطأ في cleanup_task: {e}")
     
-    # بدء cleanup task في الخلفية
-    asyncio.create_task(cleanup_task())
+    # بدء cleanup task في الخلفية بعد بدء event loop
+    async def post_init(application):
+        application.create_task(cleanup_task())
+    
+    app.post_init = post_init
     
     logger.info("🚀 البوت يعمل الآن...")
     app.run_polling()
