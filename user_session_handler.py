@@ -92,7 +92,18 @@ async def user_add_session_api(update: Update, context: ContextTypes.DEFAULT_TYP
     
     try:
         # إرسال كود التحقق
-        await session_manager.send_code(phone, api_id, api_hash)
+        result = await session_manager.create_session(phone, api_id, api_hash)
+        
+        if result['status'] != 'code_sent':
+            await update.message.reply_text(
+                f"❌ {result['message']}\n\n"
+                "جرّب مرة أخرى: /addsession"
+            )
+            context.user_data.clear()
+            return ConversationHandler.END
+        
+        # حفظ phone_code_hash
+        context.user_data['phone_code_hash'] = result['phone_code_hash']
         
         await update.message.reply_text(
             "✅ تم إرسال كود التحقق!\n\n"
@@ -118,19 +129,30 @@ async def user_add_session_code(update: Update, context: ContextTypes.DEFAULT_TY
     phone = context.user_data['user_session_phone']
     api_id = context.user_data['user_session_api_id']
     api_hash = context.user_data['user_session_api_hash']
+    phone_code_hash = context.user_data['phone_code_hash']
     
     try:
-        # تسجيل الدخول
-        session_string = await session_manager.sign_in(phone, api_id, api_hash, code)
+        # التحقق من الكود
+        result = await session_manager.verify_code(phone, code, phone_code_hash, api_id, api_hash)
         
-        if not session_string:
-            # قد يحتاج كلمة مرور
+        if result['status'] == 'password_required':
+            # يحتاج كلمة مرور
             await update.message.reply_text(
                 "🔐 **كلمة المرور مطلوبة**\n\n"
                 "أرسل كلمة مرور التحقق بخطوتين:",
                 parse_mode='Markdown'
             )
             return USER_ADD_SESSION_PASSWORD
+        
+        if result['status'] != 'success':
+            await update.message.reply_text(
+                f"❌ {result['message']}\n\n"
+                "جرّب مرة أخرى: /addsession"
+            )
+            context.user_data.clear()
+            return ConversationHandler.END
+        
+        session_string = result['session_string']
         
         # حفظ الجلسة
         session_id = db.add_session(
@@ -170,10 +192,22 @@ async def user_add_session_password(update: Update, context: ContextTypes.DEFAUL
     phone = context.user_data['user_session_phone']
     api_id = context.user_data['user_session_api_id']
     api_hash = context.user_data['user_session_api_hash']
+    phone_code_hash = context.user_data['phone_code_hash']
+    code = context.user_data.get('code', '')
     
     try:
-        # تسجيل الدخول بكلمة المرور
-        session_string = await session_manager.sign_in_password(phone, api_id, api_hash, password)
+        # التحقق مع كلمة المرور
+        result = await session_manager.verify_code(phone, code, phone_code_hash, api_id, api_hash, password)
+        
+        if result['status'] != 'success':
+            await update.message.reply_text(
+                f"❌ {result['message']}\n\n"
+                "جرّب مرة أخرى: /addsession"
+            )
+            context.user_data.clear()
+            return ConversationHandler.END
+        
+        session_string = result['session_string']
         
         # حفظ الجلسة
         session_id = db.add_session(
