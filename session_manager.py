@@ -66,6 +66,7 @@ class SessionManager:
                 if password:
                     await client.sign_in(password=password)
                 else:
+                    # لا تحذف الـ client - سنحتاجه لكلمة المرور
                     return {
                         'status': 'password_required',
                         'message': 'الحساب محمي بكلمة مرور. أدخل كلمة المرور.'

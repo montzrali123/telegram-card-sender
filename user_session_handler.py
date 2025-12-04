@@ -28,7 +28,7 @@ async def cmd_addsession_user(update: Update, context: ContextTypes.DEFAULT_TYPE
         "4. كود التحقق\n\n"
         "💡 احصل على API ID و Hash من:\n"
         "https://my.telegram.org/apps\n\n"
-        "📞 أرسل رقم هاتفك الآن (مثال: +9647850466560):",
+        "📞 أرسل رقم هاتفك الآن (مثال: +1234567890):",
         parse_mode='Markdown'
     )
     
@@ -41,7 +41,7 @@ async def user_add_session_phone(update: Update, context: ContextTypes.DEFAULT_T
     if not phone.startswith('+'):
         await update.message.reply_text(
             "❌ رقم الهاتف يجب أن يبدأ بـ +\n\n"
-            "مثال: +9647850466560\n\n"
+            "مثال: +1234567890\n\n"
             "أرسل رقم هاتفك مرة أخرى:"
         )
         return USER_ADD_SESSION_PHONE
@@ -136,7 +136,8 @@ async def user_add_session_code(update: Update, context: ContextTypes.DEFAULT_TY
         result = await session_manager.verify_code(phone, code, phone_code_hash, api_id, api_hash)
         
         if result['status'] == 'password_required':
-            # يحتاج كلمة مرور
+            # يحتاج كلمة مرور - حفظ الكود للاستخدام لاحقاً
+            context.user_data['code'] = code
             await update.message.reply_text(
                 "🔐 **كلمة المرور مطلوبة**\n\n"
                 "أرسل كلمة مرور التحقق بخطوتين:",
