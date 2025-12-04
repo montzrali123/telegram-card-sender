@@ -87,8 +87,8 @@ class CardChecker:
             # ✅ تحسين: دعم أوامر مختلفة
             await client.send_message(checker_bot, card_text)
             
-            # ✅ تحسين: وقت انتظار أطول (10 ثواني)
-            await asyncio.sleep(10)
+            # ✅ تحسين: وقت انتظار 13 ثانية (كما حدده المستخدم)
+            await asyncio.sleep(13)
             
             # الحصول على آخر رسالة من البوت
             messages = await client.get_messages(checker_bot, limit=1)
