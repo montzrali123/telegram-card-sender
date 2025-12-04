@@ -937,6 +937,19 @@ def main():
     # تهيئة notifier
     notifier = Notifier(app.bot)
     
+    # ✅ إضافة المدير كمستخدم تلقائياً
+    owner_id = int(os.getenv('OWNER_ID', 0))
+    if owner_id:
+        existing_owner = db.get_user(owner_id)
+        if not existing_owner:
+            db.add_user(
+                telegram_id=owner_id,
+                checker_bot='@KillerPayuBot',  # بوت افتراضي
+                max_cards_per_check=800,
+                delay_between_cards=13
+            )
+            logger.info(f"✅ تم إضافة المدير {owner_id} كمستخدم")
+    
     # أوامر المدير
     app.add_handler(CommandHandler("adduser", lambda u, c: admin_commands.cmd_adduser(u, c, db)))
     app.add_handler(CommandHandler("listusers", lambda u, c: admin_commands.cmd_listusers(u, c, db)))
@@ -987,7 +1000,10 @@ def main():
             CREATE_TASK_FILE: [MessageHandler(filters.Document.ALL | filters.TEXT & ~filters.COMMAND, create_task_file)],
             CREATE_TASK_INTERVAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_task_interval)],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CommandHandler("start", start)  # ✅ للخروج من أي حالة
+        ],
     )
     
     # إضافة CallbackQueryHandler قبل ConversationHandler لإعطائه الأولوية
