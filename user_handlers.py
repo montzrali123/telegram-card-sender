@@ -2,6 +2,7 @@
 معالجات المستخدمين العاديين
 """
 import logging
+import asyncio
 from telegram import Update
 from telegram.ext import ContextTypes
 
@@ -84,33 +85,49 @@ async def handle_check_cards(update: Update, context: ContextTypes.DEFAULT_TYPE,
             # ✅ معالجة الأخطاء لعدم توقف الفحص
             logger.error(f"خطأ في إرسال بطاقة ناجحة: {e}")
     
-    # فحص البطاقات مع callback
-    results = await card_checker.check_cards_batch(
-        cards,
-        user['checker_bot'],
-        user['session_id'],
-        user['delay_between_cards'],
-        on_result_callback=on_approved_card  # ✅ إرسال فوري
-    )
+    # ✅ دالة للفحص في الخلفية
+    async def check_in_background():
+        try:
+            # فحص البطاقات مع callback
+            results = await card_checker.check_cards_batch(
+                cards,
+                user['checker_bot'],
+                user['session_id'],
+                user['delay_between_cards'],
+                on_result_callback=on_approved_card
+            )
+            
+            # إرسال النتائج المتبقية (الفاشلة وغير المحددة)
+            for i, result in enumerate(results, 1):
+                # تخطي الناجحة (تم إرسالها فوراً)
+                if result['status'] != 'approved':
+                    result_text = card_checker.format_result(result)
+                    await update.message.reply_text(result_text, parse_mode='Markdown')
+            
+            # إرسال الملخص
+            summary = card_checker.format_summary(results)
+            await update.message.reply_text(summary, parse_mode='Markdown')
+            
+            # حذف رسالة التقدم
+            try:
+                await progress_msg.delete()
+            except:
+                pass
+            
+            logger.info(f"تم فحص {len(cards)} بطاقة للمستخدم {user_id}")
+            
+        except Exception as e:
+            logger.error(f"خطأ في الفحص: {e}")
+            await update.message.reply_text(
+                f"❌ خطأ في الفحص:\n{str(e)}\n\n"
+                "جرّب مرة أخرى."
+            )
     
-    # إرسال النتائج المتبقية (الفاشلة وغير المحددة)
-    for i, result in enumerate(results, 1):
-        # تخطي الناجحة (تم إرسالها فوراً)
-        if result['status'] != 'approved':
-            result_text = card_checker.format_result(result)
-            await update.message.reply_text(result_text, parse_mode='Markdown')
+    # ✅ تشغيل الفحص في الخلفية (non-blocking)
+    asyncio.create_task(check_in_background())
     
-    # إرسال الملخص
-    summary = card_checker.format_summary(results)
-    await update.message.reply_text(summary, parse_mode='Markdown')
-    
-    # حذف رسالة التقدم
-    try:
-        await progress_msg.delete()
-    except:
-        pass
-    
-    logger.info(f"تم فحص {len(cards)} بطاقة للمستخدم {user_id}")
+    # ✅ البوت يعود فوراً لمعالجة رسائل أخرى!
+    logger.info(f"بدأ فحص {len(cards)} بطاقة للمستخدم {user_id} في الخلفية")
 
 async def cmd_addsession_user(update: Update, context: ContextTypes.DEFAULT_TYPE, db, session_manager):
     """إضافة جلسة للمستخدم"""
